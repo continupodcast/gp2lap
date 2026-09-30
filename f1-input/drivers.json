@@ -1,0 +1,280 @@
+{
+  "season": "2025",
+  "teams": {
+    "redbull": {
+      "name": "Red Bull",
+      "color": "#1565C0",
+      "logo": "2025redbullracinglogo.avif"
+    },
+    "mclaren": {
+      "name": "McLaren",
+      "color": "#FF8000",
+      "logo": "2025mclarenlogo.avif"
+    },
+    "ferrari": {
+      "name": "Ferrari",
+      "color": "#A8001B",
+      "logo": "2025ferrarilogo.avif"
+    },
+    "mercedes": {
+      "name": "Mercedes",
+      "color": "#00D2BE",
+      "logo": "2025mercedeslogowhite.avif"
+    },
+    "astonmartin": {
+      "name": "Aston Martin",
+      "color": "#006F62",
+      "logo": "2025astonmartinlogowhite.avif"
+    },
+    "racingbulls": {
+      "name": "Racing Bulls",
+      "color": "#0033A0",
+      "logo": "2025racingbullslogo.avif"
+    },
+    "kicksauber": {
+      "name": "Audi",
+      "color": "#ff4000",
+      "logo": "2026audilogowhite.avif"
+    },
+    "alpine": {
+      "name": "Alpine",
+      "color": "#07a9f7",
+      "logo": "2025alpinelogo.avif"
+    },
+    "williams": {
+      "name": "Williams",
+      "color": "#0043e0",
+      "logo": "2025williamslogo.avif"
+    },
+    "haas": {
+      "name": "Haas",
+      "color": "#B6BABD",
+      "logo": "2025haasf1teamlogo.avif"
+    },
+    "cadillac": {
+      "name": "Cadillac",
+      "color": "#787878",
+      "logo": "2025cadillaclogo.avif"
+    },
+    "honda": {
+      "name": "Gulf Nissan",
+      "color": "#fe9116",
+      "logo": "2026gullogo.png"
+    },
+    "porsche": {
+      "name": "Peugeot",
+      "color": "#9bff80",
+      "logo": "2026peugeotlogo.png"
+    }
+  },
+  "drivers": [
+    {
+      "car_id": 36,
+      "abbr": "VER",
+      "first": "Max",
+      "last": "VERSTAPPEN",
+      "number": 3,
+      "team": "redbull"
+    },
+    {
+      "car_id": 11,
+      "abbr": "HAD",
+      "first": "Isack",
+      "last": "HADJAR",
+      "number": 6,
+      "team": "redbull"
+    },
+    {
+      "car_id": 28,
+      "abbr": "NOR",
+      "first": "Lando",
+      "last": "NORRIS",
+      "number": 1,
+      "team": "mclaren"
+    },
+    {
+      "car_id": 13,
+      "abbr": "PIA",
+      "first": "Oscar",
+      "last": "PIASTRI",
+      "number": 81,
+      "team": "mclaren"
+    },
+    {
+      "car_id": 26,
+      "abbr": "HAM",
+      "first": "Lewis",
+      "last": "HAMILTON",
+      "number": 44,
+      "team": "ferrari"
+    },
+    {
+      "car_id": 16,
+      "abbr": "LEC",
+      "first": "Charles",
+      "last": "LECLERC",
+      "number": 16,
+      "team": "ferrari"
+    },
+    {
+      "car_id": 33,
+      "abbr": "RUS",
+      "first": "George",
+      "last": "RUSSELL",
+      "number": 63,
+      "team": "mercedes"
+    },
+    {
+      "car_id": 12,
+      "abbr": "ANT",
+      "first": "Kimi",
+      "last": "ANTONELLI",
+      "number": 12,
+      "team": "mercedes"
+    },
+    {
+      "car_id": 14,
+      "abbr": "ALO",
+      "first": "Fernando",
+      "last": "ALONSO",
+      "number": 14,
+      "team": "astonmartin"
+    },
+    {
+      "car_id": 18,
+      "abbr": "STR",
+      "first": "Lance",
+      "last": "STROLL",
+      "number": 18,
+      "team": "astonmartin"
+    },
+    {
+      "car_id": 22,
+      "abbr": "LIN",
+      "first": "Arvid",
+      "last": "LINDBLAD",
+      "number": 41,
+      "team": "racingbulls"
+    },
+    {
+      "car_id": 30,
+      "abbr": "LAW",
+      "first": "Liam",
+      "last": "LAWSON",
+      "number": 30,
+      "team": "racingbulls"
+    },
+    {
+      "car_id": 15,
+      "abbr": "BOR",
+      "first": "Gabriel",
+      "last": "BORTOLETO",
+      "number": 5,
+      "team": "kicksauber"
+    },
+    {
+      "car_id": 27,
+      "abbr": "HUL",
+      "first": "Nico",
+      "last": "HULKENBERG",
+      "number": 27,
+      "team": "kicksauber"
+    },
+    {
+      "car_id": 10,
+      "abbr": "GAS",
+      "first": "Pierre",
+      "last": "GASLY",
+      "number": 10,
+      "team": "alpine"
+    },
+    {
+      "car_id": 34,
+      "abbr": "COL",
+      "first": "Franco",
+      "last": "COLAPINTO",
+      "number": 43,
+      "team": "alpine"
+    },
+    {
+      "car_id": 23,
+      "abbr": "ALB",
+      "first": "Alex",
+      "last": "ALBON",
+      "number": 23,
+      "team": "williams"
+    },
+    {
+      "car_id": 35,
+      "abbr": "SAI",
+      "first": "Carlos",
+      "last": "SAINZ",
+      "number": 55,
+      "team": "williams"
+    },
+    {
+      "car_id": 31,
+      "abbr": "OCO",
+      "first": "Esteban",
+      "last": "OCON",
+      "number": 31,
+      "team": "haas"
+    },
+    {
+      "car_id": 38,
+      "abbr": "BEA",
+      "first": "Oliver",
+      "last": "BEARMAN",
+      "number": 87,
+      "team": "haas"
+    },
+    {
+      "car_id": 29,
+      "abbr": "ARO",
+      "first": "Paul",
+      "last": "ARON",
+      "number": 17,
+      "team": "honda"
+    },
+    {
+      "car_id": 25,
+      "abbr": "DOO",
+      "first": "Jack",
+      "last": "DOOHAN",
+      "number": 7,
+      "team": "honda"
+    },
+    {
+      "car_id": 19,
+      "abbr": "PER",
+      "first": "Sergio",
+      "last": "PEREZ",
+      "number": 11,
+      "team": "cadillac"
+    },
+    {
+      "car_id": 21,
+      "abbr": "BOT",
+      "first": "Valtteri",
+      "last": "BOTTAS",
+      "number": 77,
+      "team": "cadillac"
+    },
+    {
+      "car_id": 20,
+      "abbr": "SCH",
+      "first": "Mick",
+      "last": "SCHUMACHER",
+      "number": 94,
+      "team": "porsche"
+    },
+    {
+      "car_id": 24,
+      "abbr": "DRU",
+      "first": "Felipe",
+      "last": "DRUGOVICH",
+      "number": 19,
+      "team": "porsche"
+    }
+  ]
+}

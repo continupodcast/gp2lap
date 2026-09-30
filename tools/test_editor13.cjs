@@ -1,0 +1,33 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
+const root=path.resolve(__dirname,'..');
+const html=fs.readFileSync(path.join(root,'release/EDITOR.html'),'utf8');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+new vm.Script(script);
+const context=vm.createContext({structuredClone,TextEncoder,TextDecoder,Blob,Uint8Array,console});
+vm.runInContext(script.slice(0,script.indexOf("$('export').onclick")),context);
+const run=s=>vm.runInContext(s,context);
+context.exe=new Uint8Array(fs.readFileSync(process.argv[2]||path.join(root,'../upload/GP2.EXE')));
+run('var roster=readGP2(exe); var imported=importedState(state,roster); validate(imported);');
+assert.equal(run('roster.length'),13);
+assert.equal(run('roster[0].drivers[0].id'),33);
+assert.equal(run('imported.drivers.find(d=>d.id===34).number'),43);
+assert.equal(run('imported.drivers.find(d=>d.id===34).last'),'COLAPINTO');
+assert.equal(run('imported.teams[imported.drivers.find(d=>d.id===34).team].color'),run('state.teams[state.drivers.find(d=>d.id===34).team].color'));
+const changed=new Uint8Array(context.exe);changed.set(Buffer.from('Test RACER [99]\0'),0x1dc592);context.modified=changed;
+assert.equal(run('importedState(state,readGP2(modified)).drivers.find(d=>d.id===34).last'),'RACER');
+assert.equal(run('importedState(state,readGP2(modified)).drivers.find(d=>d.id===34).number'),99);
+const reordered=new Uint8Array(context.exe);[reordered[0x1dc1ee],reordered[0x1dc1ef]]=[reordered[0x1dc1ef],reordered[0x1dc1ee]];context.modified=reordered;
+assert.equal(run('readGP2(modified)[0].drivers[0].id'),12);
+for(const bad of [context.exe.slice(0,400),new Uint8Array(context.exe.length)]){context.bad=bad;assert.throws(()=>run('readGP2(bad)'));}
+const duplicate=new Uint8Array(context.exe);duplicate[0x1dc1ee]=duplicate[0x1dc1ef];context.bad=duplicate;assert.throws(()=>run('readGP2(bad)'));
+run("state=imported;state.season='2026';state.teams[0].mode='custom';state.teams[0].pixels=Array(768).fill(255);validate(state);var exported=cfg();var reopened=parseCFG(exported);validate(reopened);");
+assert.equal(run('reopened.season'),'2026');
+assert.equal(run('reopened.teams[0].file'),'SEASONS/LOGOS/2026/TEAM01.F1L');
+assert.equal(run('reopened.drivers.find(d=>d.id===34).number'),43);
+run("state.season='../BAD'");assert.throws(()=>run('validate(state)'));
+run("state.season='2026'");
+(async()=>{
+ const blob=run("zip([['GP2LAP.CFG',enc.encode(exported)],[logoPath(0),new Uint8Array([...enc.encode('F1L1'),...state.teams[0].pixels])]])");
+ fs.writeFileSync(path.join(root,'validation/editor-013-export.zip'),Buffer.from(await blob.arrayBuffer()));
+ console.log('PASS: real EXE, edited names/numbers, reordered CarIds, corrupt/duplicate rejection, preserved colours, CFG roundtrip and nested ZIP.');
+})();

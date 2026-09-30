@@ -21,6 +21,15 @@
         ;---- Frank 10/99 -------
         EXTRN   _fpAHFPitLaneArea       :dword
         ;---- Frank 12/99 -------
+        EXTRN   _fpF1NativeBefore :dword
+        EXTRN   _fpF1NativeAfter :dword
+        EXTRN   _fpF1NativeOriginal :dword
+        PUBLIC  _F1NativeCaptionWrapped
+        EXTRN   _fpF1CockpitBefore :dword
+        EXTRN   _fpF1CockpitAfter :dword
+        EXTRN   _fpF1VideoReset :dword
+        EXTRN   _F1CockpitView :dword
+        EXTRN   _fpF1Compose           :dword
         EXTRN   _fpKeyMainHandler       :dword
         EXTRN   _fpTrackNrToFilename :dword
         EXTRN   _fpOnDecodePicData   :dword
@@ -208,6 +217,23 @@ FranksCodeStuff     proc    near
                     mov     dword ptr [eax+1],ecx
 
 L_MyCockpitDraw:
+                    ; Wrap the existing SVGA cockpit call; retain original renderer.
+                    mov     eax,ebx
+                    add     eax,7181eh
+                    sub     eax,10020h
+                    cmp     byte ptr [eax],0e8h
+                    jne     F1NoCockpitWrapper
+                    mov     ecx,[eax+1]
+                    add     ecx,eax
+                    add     ecx,5
+                    cmp     byte ptr [ecx],60h ; original DrawCockpitView starts pushad
+                    jne     F1NoCockpitWrapper
+                    mov     ds:MyDCPVOrgPtr,ecx
+                    mov     ecx,offset F1CockpitWrapped
+                    sub     ecx,eax
+                    sub     ecx,5
+                    mov     [eax+1],ecx
+F1NoCockpitWrapper:
                     jmp     L_PMBanking ;) otherwise...
                     ;-------------- new DrawCockPitView SVGA ---------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
@@ -406,6 +432,7 @@ MyDrawFunc_     proc    near
                 cmp     dword ptr ds:_activepage,0
                 je      IgnoreNow      ; no patching for page '0'
                 pushad
+                mov     dword ptr ds:_F1CockpitView,1
                 call    PatchBildBuffer
                 popad
 IgnoreNow:
@@ -493,6 +520,36 @@ L_NoLFB:
 
 ;------------------------------------------------------------------------
 
+_F1NativeCaptionWrapped proc near
+                pushfd
+                pushad
+                call    dword ptr ds:_fpF1NativeBefore
+                popad
+                popfd
+                call    dword ptr ds:_fpF1NativeOriginal
+                pushfd
+                pushad
+                call    dword ptr ds:_fpF1NativeAfter
+                popad
+                popfd
+                retn
+_F1NativeCaptionWrapped endp
+
+F1CockpitWrapped proc near
+                pushfd
+                pushad
+                call    dword ptr ds:_fpF1CockpitBefore
+                popad
+                popfd
+                call    dword ptr ds:MyDCPVOrgPtr
+                pushfd
+                pushad
+                call    dword ptr ds:_fpF1CockpitAfter
+                popad
+                popfd
+                retn
+F1CockpitWrapped endp
+
 MyDCPVOrgPtr    dd      0
 d_NewVideoPage  dd      0
 pSetVPageFunc   dd      0
@@ -546,6 +603,7 @@ DrawSvgaCamView proc    near
                 cmp     dword ptr ds:_activepage,0
                 je      NoDSCVPatch    ; no patching for page '0'
                 pushad
+                mov     dword ptr ds:_F1CockpitView,0
                 call    PatchBildBuffer
                 popad
 NoDSCVPatch:
@@ -566,6 +624,7 @@ DrawVgaCamView  proc    near
                 cmp     dword ptr ds:_activepage,0
                 je      NoDVCVPatch    ; no patching for page '0'
                 pushad
+                mov     dword ptr ds:_F1CockpitView,0
                 call    PatchBildBuffer
                 popad
 NoDVCVPatch:
@@ -787,6 +846,7 @@ Hook_RealECP_R  endp
 ;----- Frank 08/99 ---- car's cockpit gets redrawn (changed CarInView) -----
 Hook_CpitUpd    proc    near
                 pushad
+                call    dword ptr ds:_fpF1VideoReset
                 call    dword ptr ds:_fpAHFCarInViewUpd
                 popad
                 ;-----------------------
@@ -798,6 +858,7 @@ Hook_CpitUpd    endp
 ;----- Frank 08/99 ---- cameraview gets redrawn (changed CarInView) -----
 Hook_CamUpd     proc    near
                 pushad
+                call    dword ptr ds:_fpF1VideoReset
                 call    dword ptr ds:_fpAHFCarInViewUpd
                 popad
                 ;-----------------------

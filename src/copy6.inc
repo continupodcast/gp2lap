@@ -1,4 +1,8 @@
 PatchBildBuffer proc    near
+                pushad
+                mov eax,esi
+                call dword ptr ds:_fpF1Compose
+                popad
 
                 ;------ meinen Bildpuffer reinpatchen (auáer 00h) -----
                 ; esi ist gp2-bildbuffer

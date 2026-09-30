@@ -1,0 +1,14 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
+const root=path.resolve(__dirname,'..'),html=fs.readFileSync(path.join(root,'release/EDITOR.html'),'utf8'),script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const context=vm.createContext({structuredClone,TextEncoder,TextDecoder,Blob,Uint8Array});
+vm.runInContext(script.slice(0,script.indexOf("$('export').onclick")),context);
+const run=s=>vm.runInContext(s,context);
+run('validate(state);var out=cfg();var rt=parseCFG(out);validate(rt)');
+assert.ok(run('out.includes("HudTheme = 0")'),'default theme exported as 0');
+assert.equal(run('rt.controls.theme'),0);
+run('state.controls.theme=1;out=cfg();rt=parseCFG(out);validate(rt)');
+assert.ok(run('out.includes("HudTheme = 1")'),'90s theme exported');
+assert.equal(run('rt.controls.theme'),1);
+assert.equal(run('(out.match(/HudTheme/g)||[]).length'),1,'HudTheme written once');
+run('state.controls.theme=7;validate(state)');assert.equal(run('state.controls.theme'),0,'invalid theme falls back to modern');
+console.log('PASS: HudTheme export, roundtrip and fallback.');

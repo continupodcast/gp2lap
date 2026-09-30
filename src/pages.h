@@ -1,3 +1,8 @@
+#define PAGE_F1MAP      0x80
+#define PAGE_F1DRIVER   0x40
+#define PAGE_F1CARD     0x20
+#define PAGE_F1HUD      (PAGE_F1TOWER|PAGE_F1CARD|PAGE_F1DRIVER|PAGE_F1MAP)
+#define PAGE_F1TOWER    0x10
 #define PAGE_NONE       0x00
 #define PAGE_LOG        0x01
 #define PAGE_MAP        0x02
