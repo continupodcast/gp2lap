@@ -1,3 +1,34 @@
+# GP2Lap F1 HUD
+--------------
+
+This repository is a personal fork of GP2Lap that includes the GP2Lap F1 HUD modification.
+
+The mod adds a native modern-style Formula 1 overlay to Grand Prix 2, including:
+
+- Race and qualifying timing towers
+- TV and onboard layouts
+- Driver cards and team colors
+- Full-track map with colored car markers
+- Microsector timing and record tracking
+- Pit-stop indicators and position-change indicators
+- Battle camera support
+- Fuel-drain tools for removing unused cars
+- HUD configuration editor
+- Support for up to 14 teams in qualifying and practice sessions
+
+The original GP2Lap functionality and keyboard commands remain available.
+
+This repository contains the source code, build tools, tests, documentation, and editor files. Executable builds and ready-to-use packages are distributed through the GitHub Releases section.
+
+## Project status
+
+The F1 HUD is under active development and testing with Grand Prix 2 running through RetroArch and DOSBox Pure.
+
+## License
+
+This fork is based on the original GP2Lap project. See the original license and project documentation for licensing details.
+
+
 What is GP2Lap
 --------------
 
@@ -44,3 +75,5 @@ Then build from the repository root with wmake:
 
 As on Windows, dos4gw.exe must be present next to gp2lap.exe to run it, and the result runs under
 DOSBox (tested with DOSBox-X and DOSBox-Staging on Linux).
+
+
