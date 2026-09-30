@@ -24,6 +24,7 @@
 #include "cfgmain.h"							  // cfg file handling
 #include "cfgdefin.inc"							// custom cfg switches
 
+#include "f1config.h"
 #include "int9.h"
 #include "keyqueue.h"
 #include "keyhand.h"
@@ -36,6 +37,7 @@
 #endif
 
 #include "gp2lap.h"
+#include "f1tower.h"
 
 #include "ipx/ipxgp2.inc"
 
@@ -207,6 +209,8 @@ int main(int argc, const char *argv[])
 #endif
 
 	printf(GP2LAP_BANNER_STR);
+    printf("F1 HUD 0.31 - 90s theme (HudTheme) - keys 3 / TAB / 4 / 5 / 6 / 7\n");
+    F1DiagBoot();
 #ifdef SOCKCLNT
 	printf("This version of GP2Lap was compiled as a socket client.\n");
 #endif
@@ -226,6 +230,8 @@ int main(int argc, const char *argv[])
 		case 1: fprintf(stderr, "*** can't open %s\n", fullname); break;
 		case 2: fprintf(stderr, "*** can't locate %s\n", fullname); break;
 	}
+	if (F1ConfigLoad(fullname) < 0)
+		fprintf(stderr, "*** F1 HUD config invalid; compiled HUD data will be used\n");
 
 	pULongCfg = GetCfgULong("logDebug");
 	if (pULongCfg)

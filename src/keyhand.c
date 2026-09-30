@@ -8,6 +8,7 @@
 #include "trackmap.h"
 #include "gp2hook.h"
 #include "carinfo.h"
+#include "f1tower.h"
 #include "timing/atl.h"
 #include "svga/gp2pics.h" // wegen SaveScreenShotNow()
 #include "keyqueue.h"
@@ -30,6 +31,9 @@ void KeyMainHandler()   // called for every frame or so...
 
       // LogLine("KeyEvent available\n");
 
+      F1LogKey(actkbd.scancode);
+      F1Tab(actkbd.scancode);
+      F1ControlKey(actkbd.scancode);
       CallRecentKbdHandler(&actkbd); // Warning: including the activate key event
 
       // activating a page (including its kbd handler) ?
@@ -46,6 +50,23 @@ void KeyMainHandler()   // called for every frame or so...
         //
         // Rene, maybe you can take a look at your OnModuleTrackMapKeyHit() etc...
         //       (currently the track map doesn't get disabled by itself (only with '0'))
+
+        case KEY_3:
+            if (!PAGEISACTIVE(PAGE_F1HUD) && !actkbd.lctrlactive) RemoveAllPages();
+            F1Toggle();
+            break;
+
+        case KEY_4:
+            F1ToggleCard();
+            break;
+
+        case KEY_6:
+            F1ToggleMap();
+            break;
+
+        case KEY_5:
+            F1ToggleDriver();
+            break;
 
         case KEY_1:
             if (!PAGEISACTIVE(PAGE_CARINFO)) {

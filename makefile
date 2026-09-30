@@ -70,7 +70,7 @@ CCOPTS=$(CCOPTS) -i=inc -dAUTH
 ################################################################
 # Targets
 
-OBJS=	$(OUTDIR)\gp2lap.obj $(OUTDIR)\gp2hook.obj $(OUTDIR)\gp2log.obj			\
+OBJS=$(OUTDIR)\f1render.obj $(OUTDIR)\f1tower.obj 	$(OUTDIR)\gp2lap.obj $(OUTDIR)\gp2hook.obj $(OUTDIR)\gp2log.obj			\
 		 $(OUTDIR)\lammcall.obj $(OUTDIR)\basiclog.obj $(OUTDIR)\misc.obj		\
 		 $(OUTDIR)\track.obj $(OUTDIR)\cfgmain.obj $(OUTDIR)\myfntlib.obj		\
          $(OUTDIR)\svgabmp.obj $(OUTDIR)\timinpic.obj $(OUTDIR)\rbehind.obj		\

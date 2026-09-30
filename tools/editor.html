@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GP2 · HUD Editor</title>
+<style>
+:root{color-scheme:dark;font:14px system-ui;background:#101218;color:#eef1f7}*{box-sizing:border-box}body{margin:0}header{position:sticky;top:0;z-index:3;background:#161a24;border-bottom:1px solid #323849;padding:18px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}h1{font-size:21px;margin:0 auto 0 0}small,.muted{color:#aab4c7}button,.button,select,input{font:inherit;border:1px solid #414b60;background:#202737;color:inherit;border-radius:6px;padding:9px}button,.button{cursor:pointer}button:hover,.button:hover{background:#323d53}.primary{background:#2568c7;border-color:#4587e4}.toolbar{padding:18px 28px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}main{padding:0 28px 32px;display:grid;grid-template-columns:minmax(500px,1fr) 310px;gap:24px}.panel{background:#171c27;border:1px solid #30394b;border-radius:10px;padding:18px}h2{margin-top:0;font-size:18px}.teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(275px,1fr));gap:14px}.team{border-top:4px solid var(--team);padding:16px;background:#1e2532;border-radius:7px}label{display:block;color:#b9c4d5;font-size:12px;margin:9px 0 4px}input[type=text],input[type=number],select{width:100%}input[type=color]{padding:2px;width:55px;height:36px}.row{display:flex;gap:10px;align-items:center}.row>*{min-width:0}.logo{width:96px;height:72px;background:repeating-conic-gradient(#262e3c 0% 25%,#394357 0% 50%) 50%/12px 12px;image-rendering:pixelated;border:1px solid #59647a}.logo img{width:100%;height:100%;image-rendering:pixelated}.hint{font-size:12px;line-height:1.6;color:#aab4c7}aside{align-self:start;position:sticky;top:100px}canvas{image-rendering:pixelated}#preview{width:100%;height:auto;background:#414d3b}table{border-collapse:collapse;width:100%}th,td{padding:6px 4px;border-bottom:1px solid #30394b;text-align:left}th{font-size:12px;color:#aab4c7}td input,td select{padding:7px;font-size:12px}#drivers{overflow:auto}#status{color:#c6d7f4;line-height:1.5;margin:0}dialog{background:#171c27;color:#eef1f7;border:1px solid #4b5870;border-radius:12px;max-width:620px;width:95%}dialog::backdrop{background:#000b}#original{max-width:100%;max-height:190px;object-fit:contain;background:#384052}#converted{width:160px;height:120px;background:#303949}.hidden{display:none!important}a{color:#90bfff}@media(max-width:950px){main{grid-template-columns:1fr}aside{position:static}header{position:static}main,.toolbar{padding-left:14px;padding-right:14px}}
+</style>
+<header><h1>GP2 <span class="muted">/ HUD Editor</span></h1><label class="button" style="margin:0">Open CFG or project<input id="open" type="file" accept=".cfg,.json,.f1l" multiple hidden></label><button id="saveProject">Save project</button><button id="export" class="primary">Export for GP2</button></header>
+<div class="toolbar"><button id="teamsTab">Teams and logos</button><button id="driversTab">Drivers</button><label class="button">Import GP2.EXE<input id="exe" type="file" accept=".exe" hidden></label><label>Season folder <input id="season" type="text" maxlength="8" style="width:110px"></label><p id="status" role="status">Bundled configuration loaded. Changes take effect after restarting GP2.</p></div>
+<section class="panel" style="margin:0 28px 20px"><h2>In-game controls</h2><div class="row" style="flex-wrap:wrap"><label>HUD graphics <select id="hudTheme"><option value="0">Modern F1</option><option value="1">1990s broadcast</option></select></label><label><input id="fuelEnabled" type="checkbox"> Enable fuel drain with key 7</label><label>Drain duration (seconds) <input id="fuelSeconds" type="number" min="0.1" max="30" step="0.1" style="width:90px"></label></div><p class="hint">Choose target cars in the Drivers tab using the Drain column. After exporting and restarting GP2, press 7 during live driving to empty their fuel tanks. Fuel is held at zero for the selected duration in simulation time. The operation does not restore fuel afterward.</p></section>
+<main><section><div id="teams" class="teams"></div><div id="drivers" class="panel hidden"></div></section><aside class="panel"><h2>Preview</h2><label>Driver</label><select id="focus"></select><p><canvas id="preview" width="260" height="150"></canvas></p><p class="hint">Approximate preview. GP2 maps colours to its 256-colour palette. Tower logos are 16 × 12 pixels; the driver card uses a smaller version.</p><h2>How to use</h2><ol class="hint"><li>Edit teams and drivers.</li><li>Import logos and adjust their visibility.</li><li>Export and extract the ZIP into the game folder, beside the new GP2LAP.EXE.</li><li>Restart GP2Lap/GP2.</li></ol><p class="hint">Save project preserves logos for future editing. To open a CFG with external logos, also select its .F1L files. All processing takes place locally in this browser.</p></aside></main>
+<dialog id="logoDialog"><h2>Prepare logo</h2><div class="row"><img id="original" alt="Original image"><canvas id="converted" width="16" height="12"></canvas></div><label><input id="crop" type="checkbox" checked> Crop transparent margins</label><label>Stroke strength <span id="strengthValue"></span></label><input id="strength" type="range" min="1" max="5" step=".25" value="1"><p class="hint">Transparent areas are preserved. A white image background will also appear white in the game. The enlarged preview shows the pixels that will be exported.</p><div class="row"><button id="applyLogo" class="primary">Use logo</button><button id="cancelLogo">Cancel</button></div></dialog>
+<script>
+'use strict';
+const INITIAL=__INITIAL__;
+const $=id=>document.getElementById(id);
+let state=structuredClone(INITIAL), changed=false, pending=null, pendingTeam=0, converted=null;
+const enc=new TextEncoder();
+__EXE_IMPORT__
+function logoPath(i){return 'SEASONS/LOGOS/'+(state.season||'CUSTOM').toUpperCase()+'/TEAM'+String(i+1).padStart(2,'0')+'.F1L';}
+function status(s){$('status').textContent=s;}
+function ascii(s){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7e]/g,'').replace(/[";\r\n]/g,'');}
+function dirty(){changed=true;preview();}
+function field(type,value,handler,max){const e=document.createElement('input');e.type=type;e.value=value;if(max)e.maxLength=max;e.oninput=()=>{handler(e.value);dirty();};return e;}
+function label(parent,title,e){const l=document.createElement('label');l.textContent=title;parent.append(l,e);}
+function button(title,fn){const b=document.createElement('button');b.textContent=title;b.onclick=fn;return b;}
+function spriteURL(bytes){const c=document.createElement('canvas');c.width=16;c.height=12;const x=c.getContext('2d');x.putImageData(new ImageData(new Uint8ClampedArray(bytes),16,12),0,0);return c.toDataURL();}
+function render(){
+ state.controls??=structuredClone(INITIAL.controls);
+ $('fuelEnabled').checked=state.controls.fuelEnabled;$('fuelSeconds').value=state.controls.fuelMilliseconds/1000;$('hudTheme').value=String(state.controls.theme===1?1:0);
+ $('season').value=state.season||'CUSTOM';
+ $('teams').replaceChildren();
+ state.teams.forEach((t,i)=>{
+  const card=document.createElement('div');card.className='team';card.style.setProperty('--team',t.color);
+  const h=document.createElement('strong');h.textContent='Team '+(i+1);card.append(h);
+  const name=field('text',t.name,v=>t.name=v,23);name.onchange=()=>{renderDrivers();refreshFocus();};label(card,'Name',name);
+  const color=field('color',t.color,v=>{t.color=v;card.style.setProperty('--team',v);});label(card,'Team colour',color);
+  const mode=document.createElement('select');[['builtin','Built-in logo for this slot'],['custom','Custom logo'],['color','Colour only']].filter(([v])=>v!=='builtin'||INITIAL.teams[i]?.builtin).forEach(([v,n])=>mode.add(new Option(n,v)));mode.value=t.mode;mode.onchange=()=>{t.mode=mode.value;dirty();render();};label(card,'Identification',mode);
+  const row=document.createElement('div');row.className='row';row.style.marginTop='14px';const img=document.createElement('div');img.className='logo';
+  const im=document.createElement('img');if(t.mode==='builtin'&&INITIAL.teams[i]?.builtin)im.src=INITIAL.teams[i].builtin;else if(t.mode==='custom'&&t.pixels)im.src=spriteURL(t.pixels);else img.style.background=t.color;
+  if(im.src)img.append(im);row.append(img);
+  row.append(button('Import image',()=>{const f=document.createElement('input');f.type='file';f.accept='image/png,image/jpeg,image/webp,image/avif,image/svg+xml';f.onchange=()=>prepareLogo(f.files[0],i);f.click();}));card.append(row);
+  if(t.mode==='custom'&&!t.pixels){const p=document.createElement('p');p.className='hint';p.textContent='Missing logo: '+(t.file||'import an image');card.append(p);}
+  $('teams').append(card);
+ });renderDrivers();refreshFocus();preview();
+}
+function renderDrivers(){
+ const table=document.createElement('table'),head=document.createElement('tr');
+ ['Slot','CarId','First name','Last name','Abbr.','Number','Team','Drain'].forEach(s=>{const th=document.createElement('th');th.textContent=s;head.append(th);});table.append(head);
+ state.drivers.forEach((d,i)=>{const tr=document.createElement('tr'),slot=document.createElement('td');slot.textContent=i+1;tr.append(slot);
+  [['id','number',40],['first','text',23],['last','text',23],['abbr','text',3],['number','number',99]].forEach(([key,type,max])=>{
+   const td=document.createElement('td'),e=field(type,d[key],v=>{if(key==='id')state.controls.fuelTargets=state.controls.fuelTargets.filter(id=>id!==d.id);d[key]=type==='number'?Number(v):v;},type==='text'?max:null);
+   if(type==='number'){e.min=key==='id'?1:0;e.max=max;e.style.width='65px';}else e.style.minWidth=key==='abbr'?'50px':'95px';e.onchange=()=>{refreshFocus();if(key==='id')renderDrivers();};td.append(e);tr.append(td);
+  });
+  const td=document.createElement('td'),s=document.createElement('select');state.teams.forEach((t,k)=>s.add(new Option((k+1)+' · '+t.name,k)));s.value=d.team;s.onchange=()=>{d.team=+s.value;dirty();};td.append(s);tr.append(td);
+  const drain=document.createElement('td'),check=document.createElement('input');check.type='checkbox';check.checked=state.controls.fuelTargets.includes(d.id);check.setAttribute('aria-label','Drain fuel: '+d.first+' '+d.last);check.onchange=()=>{state.controls.fuelTargets=state.controls.fuelTargets.filter(id=>id!==d.id);if(check.checked)state.controls.fuelTargets.push(d.id);dirty();};drain.append(check);tr.append(drain);table.append(tr);
+ });$('drivers').replaceChildren(table);
+}
+function refreshFocus(){const old=$('focus').value;$('focus').replaceChildren();state.drivers.forEach((d,i)=>$('focus').add(new Option(d.first+' '+d.last,i)));$('focus').value=old||'0';}
+function preview(){
+ const c=$('preview'),x=c.getContext('2d');x.clearRect(0,0,260,150);x.fillStyle='#53644a';x.fillRect(0,0,260,150);x.fillStyle='#444951';x.fillRect(0,100,260,30);x.fillStyle='#20232ce8';x.fillRect(10,10,240,38);
+ const d=state.drivers[+$('focus').value||0],t=state.teams[d.team];if(!t)return;
+ x.fillStyle='#fff';x.font='bold 15px sans-serif';x.fillText('9',18,34);x.font='10px sans-serif';x.fillText(d.first,45,22);x.fillStyle=t.color;x.font='bold 12px sans-serif';x.fillText(d.last,45,35,150);x.font='bold 24px sans-serif';x.textAlign='center';x.fillText(d.number,226,38);x.textAlign='left';
+ x.fillStyle='#141820e8';x.fillRect(10,60,160,22);x.fillStyle='#fff';x.font='bold 11px sans-serif';x.fillText('9',15,75);x.fillText(d.abbr,58,75);x.fillText('+1.2',120,75);
+ if(t.mode==='color'||(t.mode==='custom'&&!t.pixels)||(t.mode==='builtin'&&!INITIAL.teams[d.team]?.builtin)){x.fillStyle=t.color;x.fillRect(34,65,16,12);}else{const img=new Image();const url=t.mode==='custom'?spriteURL(t.pixels):INITIAL.teams[d.team].builtin;img.onload=()=>{x.imageSmoothingEnabled=false;x.drawImage(img,34,65,16,12);};img.src=url;}
+}
+async function prepareLogo(file,i){if(!file)return;if(file.size>15000000){status('Image must be smaller than 15 MB.');return;}const url=URL.createObjectURL(file);try{const im=new Image();im.src=url;await im.decode();if(im.naturalWidth*im.naturalHeight>25000000)throw Error('Image dimensions are too large.');pending=im;pendingTeam=i;$('original').src=url;$('strength').value='1';$('crop').checked=true;convert();$('logoDialog').showModal();}catch(e){status('Unable to open image: '+e.message);URL.revokeObjectURL(url);}}
+function convert(){
+ if(!pending)return;const source=document.createElement('canvas');source.width=pending.naturalWidth;source.height=pending.naturalHeight;const sx=source.getContext('2d');sx.drawImage(pending,0,0);
+ let left=0,top=0,right=source.width,bottom=source.height;
+ if($('crop').checked){const a=sx.getImageData(0,0,right,bottom).data;let l=right,r=-1,t=bottom,b=-1;for(let y=0;y<bottom;y++)for(let x=0;x<right;x++)if(a[(y*right+x)*4+3]>16){l=Math.min(l,x);r=Math.max(r,x);t=Math.min(t,y);b=Math.max(b,y);}if(r>=l){left=l;top=t;right=r+1;bottom=b+1;}}
+ const c=$('converted'),x=c.getContext('2d');x.clearRect(0,0,16,12);const scale=Math.min(16/(right-left),12/(bottom-top)),w=Math.max(1,Math.round((right-left)*scale)),h=Math.max(1,Math.round((bottom-top)*scale));x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(source,left,top,right-left,bottom-top,Math.floor((16-w)/2),Math.floor((12-h)/2),w,h);
+ const pixels=x.getImageData(0,0,16,12);for(let p=3;p<pixels.data.length;p+=4)pixels.data[p]=pixels.data[p]*+$('strength').value>=128?255:0;x.putImageData(pixels,0,0);converted=Array.from(pixels.data);$('strengthValue').textContent=$('strength').value+'×';
+}
+function parseCFG(text){
+ const next=structuredClone(INITIAL);next.base=text;let section='';
+ // Allocate optional slots before applying fields, regardless of their order.
+ let scanSection='';
+ for(const line of text.split(/\r?\n/)){
+  const sec=line.match(/^\s*\[([^\]]+)\]/);if(sec){scanSection=sec[1].toLowerCase();continue;}
+  if(scanSection==='f1 teams'&&/^\s*Team14(?:Name|Color|LogoFile|Logo)\s*=/i.test(line)&&next.teams.length===13)next.teams.push(emptyTeam());
+  if(scanSection==='f1 drivers'&&/^\s*Driver(?:27|28)(?:CarId|First|Last|Abbr|Number|Team)\s*=/i.test(line)){
+   while(next.drivers.length<28)next.drivers.push({id:0,number:0,first:'',last:'',abbr:'',team:13});
+   if(next.teams.length===13)next.teams.push(emptyTeam());
+  }
+ }
+ for(const line of text.split(/\r?\n/)){const sec=line.match(/^\s*\[([^\]]+)\]/);if(sec){section=sec[1].toLowerCase();continue;}const m=line.match(/^\s*(\w+)\s*=\s*(?:"([^"]*)"|([^;]*))/);if(!m)continue;const key=m[1],v=(m[2]??m[3]).trim();let k;
+ if(section==='f1 hud'&&key.toLowerCase()==='f1season')next.season=v;
+ if(section==='f1 controls'){const c=next.controls;switch(key.toLowerCase()){case'hideretirementcaption':c.hideRetirement=+v!==0;break;case'hidecameracaption':c.hideCaption=+v!==0;break;case'fueldrainenabled':c.fuelEnabled=+v!==0;break;case'hudtheme':c.theme=+v===1?1:0;break;case'fueldrainmilliseconds':c.fuelMilliseconds=+v;break;case'fueldraincarids':c.fuelTargets=v?v.split(',').map(x=>Number(x.trim())):[];break;}}
+ if(section==='f1 teams'&&(k=key.match(/^Team(\d+)(Name|Color|LogoFile|Logo)$/i))){const t=next.teams[+k[1]-1];if(!t)continue;switch(k[2].toLowerCase()){case'name':t.name=v;break;case'color':t.color=v;break;case'logo':t.mode=+v?'builtin':'color';break;case'logofile':t.file=v;break;}}
+ if(section==='f1 drivers'&&(k=key.match(/^Driver(\d+)(CarId|First|Last|Abbr|Number|Team)$/i))){const d=next.drivers[+k[1]-1];if(!d)continue;const f=k[2].toLowerCase();if(f==='carid')d.id=+v;else if(f==='team')d.team=+v-1;else d[f]=f==='number'?+v:v;}
+ }next.teams.forEach(t=>{if(t.file&&t.mode!=='color')t.mode='custom';});return next;
+}
+function validate(s){
+ if(s&&!s.controls)s.controls=structuredClone(INITIAL.controls);
+ if(s?.controls){s.controls.hideCaption=false;s.controls.hideRetirement=false;s.controls.theme=s.controls.theme===1?1:0;}
+ const c=s?.controls;if(!c||typeof c.hideCaption!=='boolean'||typeof c.hideRetirement!=='boolean'||typeof c.fuelEnabled!=='boolean'||!Number.isInteger(c.fuelMilliseconds)||c.fuelMilliseconds<100||c.fuelMilliseconds>30000||!Array.isArray(c.fuelTargets)||c.fuelTargets.some(id=>!Number.isInteger(id)||id<1||id>40)||new Set(c.fuelTargets).size!==c.fuelTargets.length)throw Error('Invalid fuel controls. Duration must be 0.1–30 seconds and CarIds must be unique, from 1 to 40.');
+ if(!/^[a-z0-9_-]{1,8}$/i.test(s.season||'CUSTOM'))throw Error('Season folder must contain 1–8 letters, digits, underscores or hyphens.');
+ if(!s||![13,14].includes(s.teams?.length)||![26,28].includes(s.drivers?.length)||s.drivers.length>s.teams.length*2||typeof s.base!=='string')throw Error('Project must contain 13 or 14 teams and 26 or 28 drivers.');
+ const ids=new Set();s.drivers.forEach((d,i)=>{if(!Number.isInteger(d.id)||d.id<1||d.id>40||ids.has(d.id))throw Error('Invalid or duplicate CarId in slot '+(i+1));ids.add(d.id);if(!Number.isInteger(d.team)||d.team<0||d.team>=s.teams.length)throw Error('Invalid team for driver '+(i+1));if(!Number.isInteger(d.number)||d.number<0||d.number>99)throw Error('Driver number must be between 0 and 99.');for(const f of ['first','last','abbr'])if(typeof d[f]!=='string'||d[f].length>(f==='abbr'?3:23))throw Error('Text is too long for driver '+(i+1));});
+ // Slot 14 has no bundled bitmap; allow custom artwork or a colour marker.
+ s.teams.forEach((t,i)=>{if(t.mode==='builtin'&&!INITIAL.teams[i]?.builtin)t.mode=t.file?'custom':'color';});
+ s.teams.forEach((t,i)=>{if(typeof t.name!=='string'||t.name.length>23||!/^#[0-9a-f]{6}$/i.test(t.color)||!['builtin','color','custom'].includes(t.mode))throw Error('Invalid team: '+(i+1));if(t.pixels&&(!Array.isArray(t.pixels)||t.pixels.length!==768||t.pixels.some(n=>!Number.isInteger(n)||n<0||n>255)))throw Error('Invalid logo: '+(i+1));});
+}
+function cfg(){
+ let section='',kept=[];for(const line of state.base.split(/\r?\n/)){const m=line.match(/^\s*\[([^\]]+)\]/);if(m)section=m[1].toLowerCase();if(!['f1 hud','f1 teams','f1 drivers','f1 controls'].includes(section))kept.push(line);}
+ const out=[kept.join('\n').trimEnd(),'','[F1 HUD]','F1UseCustomData = 1','F1Season = "'+(state.season||'CUSTOM').toUpperCase()+'"','','[F1 Teams]'];
+ state.teams.forEach((t,i)=>{const k='Team'+String(i+1).padStart(2,'0');out.push(k+'Name = "'+ascii(t.name).toUpperCase()+'"',k+'Color = "'+t.color+'"',k+'Logo = '+(t.mode==='color'?0:1),k+'LogoFile = "'+(t.mode==='custom'?logoPath(i):'')+'"','');});
+ out.push('[F1 Drivers]');state.drivers.forEach((d,i)=>{const k='Driver'+String(i+1).padStart(2,'0');for(const [f,v] of Object.entries({CarId:d.id,First:ascii(d.first),Last:ascii(d.last),Abbr:ascii(d.abbr),Number:d.number,Team:d.team+1}))out.push(k+f+' = '+(typeof v==='string'?'"'+v+'"':v));out.push('');});
+ out.push('[F1 Controls]','HideCameraCaption = 0','HideRetirementCaption = 0','FuelDrainEnabled = '+Number(state.controls.fuelEnabled),'FuelDrainMilliseconds = '+state.controls.fuelMilliseconds,'FuelDrainCarIds = "'+state.controls.fuelTargets.join(',')+'"','; HUD graphics: 0 = modern F1, 1 = 1990s broadcast','HudTheme = '+(state.controls.theme===1?1:0));return out.join('\r\n');
+}
+function crc32(data){let c=0xffffffff;for(const b of data){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0);}return(c^0xffffffff)>>>0;}
+function zip(files){
+ let offset=0;const parts=[],central=[];
+ for(const [name,data] of files){const n=enc.encode(name),crc=crc32(data),local=new Uint8Array(30+n.length),v=new DataView(local.buffer);v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint32(14,crc,true);v.setUint32(18,data.length,true);v.setUint32(22,data.length,true);v.setUint16(26,n.length,true);local.set(n,30);parts.push(local,data);
+ const c=new Uint8Array(46+n.length),d=new DataView(c.buffer);d.setUint32(0,0x02014b50,true);d.setUint16(4,20,true);d.setUint16(6,20,true);d.setUint32(16,crc,true);d.setUint32(20,data.length,true);d.setUint32(24,data.length,true);d.setUint16(28,n.length,true);d.setUint32(42,offset,true);c.set(n,46);central.push(c);offset+=local.length+data.length;}
+ const end=new Uint8Array(22),e=new DataView(end.buffer);e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,central.reduce((s,a)=>s+a.length,0),true);e.setUint32(16,offset,true);return new Blob([...parts,...central,end],{type:'application/zip'});
+}
+function download(blob,name){const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+$('export').onclick=()=>{try{validate(state);const files=[['GP2LAP.CFG',enc.encode(cfg())]];state.teams.forEach((t,i)=>{if(t.mode==='custom'){if(!t.pixels)throw Error('Import the logo for team '+(i+1));files.push([logoPath(i),new Uint8Array([...enc.encode('F1L1'),...t.pixels])]);}});download(zip(files),'GP2-HUD-config.zip');status(state.teams.length===14?'Export complete. Extract the ZIP beside GP2LAP.EXE 0.22 or newer and restart GP2.':'Export complete. Extract the ZIP beside GP2LAP.EXE and restart GP2.');}catch(e){status(e.message);}};
+$('saveProject').onclick=()=>{try{validate(state);download(new Blob([JSON.stringify({format:'GP2HUD1',...state})],{type:'application/json'}),'GP2-HUD-project.json');changed=false;status('Project saved, including logos.');}catch(e){status(e.message);}};
+$('open').onchange=async e=>{try{if(changed&&!confirm('There are unsaved changes. Open another file?'))return;const files=[...e.target.files],base=files.find(f=>/\.(cfg|json)$/i.test(f.name));let next=structuredClone(state);if(base){const text=await base.text();if(/\.json$/i.test(base.name)){next=JSON.parse(text);if(next.format!=='GP2HUD1')throw Error('This is not a GP2 HUD Editor project.');}else next=parseCFG(text);}const logos=files.filter(f=>/\.f1l$/i.test(f.name));if(new Set(logos.map(f=>f.name.toUpperCase())).size!==logos.length)throw Error('Select logos from one season only.');for(const f of logos){const bytes=new Uint8Array(await f.arrayBuffer());if(bytes.length!==772||new TextDecoder().decode(bytes.slice(0,4))!=='F1L1')throw Error('Invalid logo: '+f.name);next.teams.forEach(t=>{if(t.file?.split(/[\\/]/).pop().toUpperCase()===f.name.toUpperCase())t.pixels=Array.from(bytes.slice(4));});}validate(next);state=next;changed=false;render();status('File loaded.');}catch(e){status('Unable to open: '+e.message);}finally{$('open').value='';}};
+$('season').oninput=()=>{state.season=$('season').value.toUpperCase();dirty();};
+ $('fuelEnabled').onchange=()=>{state.controls.fuelEnabled=$('fuelEnabled').checked;dirty();};$('hudTheme').onchange=()=>{state.controls.theme=+$('hudTheme').value===1?1:0;dirty();};
+ $('fuelSeconds').oninput=()=>{state.controls.fuelMilliseconds=Math.round(Number($('fuelSeconds').value)*1000);dirty();};
+$('exe').onchange=async e=>{
+ try{
+  const file=e.target.files[0];if(!file)return;if(file.size>16000000)throw Error('Executable is too large.');
+  const roster=readGP2(new Uint8Array(await file.arrayBuffer())),next=importedState(state,roster);validate(next);
+  const summary=roster.map(t=>t.name+': '+t.drivers.map(d=>d.name+' (CarId '+d.id+')').join(', ')).join('\n');
+  if(!confirm('Import '+next.drivers.length+' drivers and '+roster.length+' teams into the HUD configuration?\nExisting team colours and logos will be retained. GP2.EXE will not be modified.\n\n'+summary))return;
+  state=next;changed=true;render();status('Imported '+next.drivers.length+' drivers and '+roster.length+' teams. Review names, abbreviations and numbers before exporting.'+(roster.length===14?' Requires GP2Lap HUD 0.22 or newer.':''));
+ }catch(err){status('Unable to import: '+err.message);}finally{$('exe').value='';}
+};
+$('teamsTab').onclick=()=>{$('teams').classList.remove('hidden');$('drivers').classList.add('hidden');};
+$('driversTab').onclick=()=>{$('teams').classList.add('hidden');$('drivers').classList.remove('hidden');};
+$('focus').onchange=preview;$('crop').onchange=convert;$('strength').oninput=convert;
+$('applyLogo').onclick=()=>{state.teams[pendingTeam].pixels=converted;state.teams[pendingTeam].mode='custom';state.teams[pendingTeam].file='TEAM'+String(pendingTeam+1).padStart(2,'0')+'.F1L';dirty();$('logoDialog').close();render();};
+$('cancelLogo').onclick=()=>$('logoDialog').close();
+$('logoDialog').addEventListener('close',()=>{if(pending)URL.revokeObjectURL(pending.src);pending=null;});
+window.addEventListener('beforeunload',e=>{if(changed){e.preventDefault();e.returnValue='';}});
+render();
+</script></html>

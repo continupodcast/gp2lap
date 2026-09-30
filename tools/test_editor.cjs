@@ -1,0 +1,28 @@
+const {chromium}=require('playwright');
+const path=require('path');
+const assert=require('assert');
+(async()=>{
+ const browser=await chromium.launch({headless:true,...(process.env.GP2_CHROME?{executablePath:process.env.GP2_CHROME}:{})});
+ const page=await browser.newPage({viewport:{width:1400,height:900}});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('file://'+path.resolve('release/EDITOR.html'));
+ assert.equal(await page.locator('.team').count(),13);
+ const chooser=page.waitForEvent('filechooser');
+ await page.getByText('Import image',{exact:true}).first().click();
+ await(await chooser).setFiles({name:'test.svg',mimeType:'image/svg+xml',buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect x="20" y="20" width="60" height="60" fill="#ff0000"/></svg>')});
+ await page.locator('#logoDialog').waitFor({state:'visible'});
+ await page.getByText('Use logo',{exact:true}).click();
+ const dl=page.waitForEvent('download');await page.locator('#export').click();
+ await(await dl).saveAs('validation/editor-export.zip');
+ const project=page.waitForEvent('download');await page.locator('#saveProject').click();
+ await(await project).saveAs('validation/editor-project.json');
+ await page.locator('#open').setInputFiles('validation/editor-project.json');
+ assert.equal(await page.locator('.team select').first().inputValue(),'custom');
+ await page.screenshot({path:'validation/editor-011.png'});
+ await page.locator('#driversTab').click();
+ await page.locator('#drivers input').first().fill('11');
+ await page.locator('#export').click();
+ assert.match(await page.locator('#status').textContent(),/duplicate/);
+ assert.deepEqual(errors,[]);
+ await browser.close();console.log('PASS: offline editor, image conversion, ZIP export, project roundtrip, duplicate CarId rejection.');
+})().catch(e=>{console.error(e);process.exit(1)});

@@ -15,6 +15,9 @@
 #include "trackinf.h"						 // for FrankOnTrackFileLoad()
 #include "trackmap.h"
 #include "carinfo.h"
+#include "f1tower.h"
+#include "f1advanced.h"
+#include "f1qualy.h"
 #include "miscahf.h"
 #include "vislog.h"
 #include "pages.h"
@@ -342,6 +345,7 @@ void __near InitGP2Hook(void)
 	DWORD *pULongCfg = NULL;
 
 	// F8 = freeze (instead of F8 + NUM5 + S)
+    F1ControlInit();
 	*(WORD*)(IDAtoFlat(0x3482e)) = 0x6074;
 	*(WORD*)(IDAtoFlat(0x34a60)) = 0x6074;
 
@@ -943,6 +947,9 @@ static void LogSessionData(GP2LapRecSession *rec)
 void __near SOSHook(void)
 {
 	GP2LapRecSession *rec = (GP2LapRecSession*) Log_GetRecBuf(GP2LRTYPE_SESSION);
+    F1RaceSession(1);
+    F1QReset();
+    F1VideoReset();
 	ResetLogs();
 	strcpy(strbuf, "Start of session: ");
 	strbuf2[0] = 0;
@@ -965,6 +972,9 @@ void __near SOSHook(void)
 void __near LOSHook(void)
 {
 	GP2LapRecSession *rec = (GP2LapRecSession*) Log_GetRecBuf(GP2LRTYPE_SESSION);
+    F1RaceSession(0);
+    F1QReset();
+    F1VideoReset();
 	if (isoff(log_flags, LOGF_LAPLOAD))
 		ResetLogs();
 	strcpy(strbuf, "Load of session: ");
@@ -1384,6 +1394,7 @@ void DoSendPacket()
 // End of frame
 void __near EOFHook(void)
 {
+    F1Update();
 	pCurrentCS = NULL;
 	if (ppPlayerCS && *ppPlayerCS)
 		pCurrentCS = *ppPlayerCS;
@@ -1403,6 +1414,7 @@ void __near EOFHook(void)
 	if (PAGEISACTIVE(PAGE_CARINFO)) {
 		DrawCarInfo();
 	}
+    if (PAGEISACTIVE(PAGE_F1HUD)) F1DrawDiagnostic();
 	
 #ifdef TEST
 	if (*ppSelectedCS) {
@@ -1497,6 +1509,9 @@ void __near ECPHook(void)
 // Leaving cockpit
 void __near LCPHook(void)
 {
+    F1AdvancedReset();
+    F1ControlCancel();
+    F1VideoReset();
 #ifdef SOCKCLNT
 	LogLine("Disconnecting from server\n");
 	disconnectFromServer();
