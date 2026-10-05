@@ -14,7 +14,7 @@ static void GapDiagBoot(void)
 {
  FILE *f=fopen("F1GAPS.LOG","wb");
  gapDiagUsed=0;gapDiagLines=0;gapDiagFlushAt=0;gapDiagActive=f!=NULL;
- if(f){fputs("F1 HUD 0.32 - early route hold; partial common-point means; millisecond precision\nchannel 0=preceding car, 1=leader; clocks/gaps in ms; key=(lap-1)*30+point; point 0=finish\nROUTE_HOLD=geometry unavailable before IN PIT; PIT_HOLD/PIT_REJOIN=pit continuity; PAIR_REBASE=new comparison; PUBLISH count=valid samples\nLimit: 100000 records. Pause before copying.\n",f);fclose(f);}
+ if(f){fputs("F1 HUD 0.35 - early route hold; partial common-point means; millisecond precision\nchannel 0=preceding car, 1=leader; clocks/gaps in ms; key=(lap-1)*30+point; point 0=finish\nROUTE_HOLD=geometry unavailable before IN PIT; PIT_HOLD/PIT_REJOIN=pit continuity; PAIR_REBASE=new comparison; PUBLISH count=valid samples\nLimit: 100000 records. Pause before copying.\n",f);fclose(f);}
 }
 static void GapDiagTrace(unsigned long clock,const char *format,...)
 {

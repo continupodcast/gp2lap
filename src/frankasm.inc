@@ -25,6 +25,8 @@
         EXTRN   _fpF1NativeAfter :dword
         EXTRN   _fpF1NativeOriginal :dword
         PUBLIC  _F1NativeCaptionWrapped
+        EXTRN   _fpF1SuppressNativeFastest :dword
+        EXTRN   _F1FastestHook :dword
         EXTRN   _fpF1CockpitBefore :dword
         EXTRN   _fpF1CockpitAfter :dword
         EXTRN   _fpF1VideoReset :dword
@@ -104,7 +106,7 @@ FranksCodeStuff     proc    near
                     ;---- 08/99 int2fh/1600h 1st of 4 takeovers -----
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,0a411ch ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h   ;call
                     mov     ecx,offset MyInt2f1600
                     sub     ecx,5
@@ -114,7 +116,7 @@ FranksCodeStuff     proc    near
                     ;---- 08/99 int2fh/1600h 2nd of 4 takeovers -----
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,0a4146h ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h   ;call
                     mov     ecx,offset MyInt2f1600
                     sub     ecx,5
@@ -124,7 +126,7 @@ FranksCodeStuff     proc    near
                     ;---- 08/99 int2fh/1600h 3rd of 4 takeovers -----
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,0a417bh ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h   ;call
                     mov     ecx,offset MyInt2f1600
                     sub     ecx,5
@@ -134,7 +136,7 @@ FranksCodeStuff     proc    near
                     ;---- 08/99 int2fh/1600h 4th of 4 takeovers -----
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,0a42ceh ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h   ;call
                     mov     ecx,offset MyInt2f1600
                     sub     ecx,5
@@ -145,7 +147,7 @@ FranksCodeStuff     proc    near
                     ;---- wegen mov *E*ax,1600h eins laenger ----
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,07b616h ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h   ;call
                     mov     ecx,offset MyInt2f1600
                     sub     ecx,5
@@ -155,7 +157,7 @@ FranksCodeStuff     proc    near
                     ;---- 08/99 int2fh/1500h -----
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,07b5c4h ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h   ;call
                     mov     ecx,offset MyInt2f1500
                     sub     ecx,5
@@ -165,7 +167,7 @@ FranksCodeStuff     proc    near
                     ;---- 08/99 int2fh/150bh -----
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,07b5e6h ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h   ;call
                     mov     ecx,offset MyInt2f150b
                     sub     ecx,5
@@ -175,7 +177,7 @@ FranksCodeStuff     proc    near
                     ;---- 08/99 int2fh/4a33h takeover -----
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,07b645h ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h   ;call
                     mov     ecx,offset MyInt2f4a33
                     sub     ecx,5
@@ -187,7 +189,7 @@ FranksCodeStuff     proc    near
                     ;--------- new GetStrNrESI ------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,7bee0h  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E9h    ;jmp (flat) near
                     mov     ecx,offset MyGetStrNrESI
                     sub     ecx,5
@@ -204,12 +206,12 @@ FranksCodeStuff     proc    near
                     ;je      L_PMBanking
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,7ac67h  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     [eax],Offset MySetVMode101Func_
                     ;-------------- new DrawCameraView -------------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,717bfh  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h
                     mov     ecx,offset DrawCameraView_
                     sub     ecx,5
@@ -238,7 +240,7 @@ F1NoCockpitWrapper:
                     ;-------------- new DrawCockPitView SVGA ---------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,7181eh  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     ;----- die Adresse des Originalcalls absolut machen -----
                     mov     ecx,[eax+1]
                     add     ecx,eax
@@ -253,7 +255,7 @@ F1NoCockpitWrapper:
                     ;-------------- new DrawCockPitView VGA ---------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,71889h  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h
                     mov     ecx,offset DrawCockpitView
                     sub     ecx,5
@@ -262,7 +264,7 @@ F1NoCockpitWrapper:
                     ;-------------- new DrawCockPitView (cpitupd) ---------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,713f3h  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h
                     mov     ecx,offset DrawCockpitView
                     sub     ecx,5
@@ -274,7 +276,7 @@ F1NoCockpitWrapper:
                     ;-------------- divers ---------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,71043h  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h
                     mov     ecx,offset My71043
                     sub     ecx,5
@@ -283,7 +285,7 @@ F1NoCockpitWrapper:
                     ;-------------- divers ---------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,71d95h  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h
                     mov     ecx,offset My71D95
                     sub     ecx,5
@@ -292,7 +294,7 @@ F1NoCockpitWrapper:
                     ;-------------- divers ---------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,71f8fh  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h
                     mov     ecx,offset My71F8F
                     sub     ecx,5
@@ -301,7 +303,7 @@ F1NoCockpitWrapper:
                     ;-------------- divers ---------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,722a1h  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     byte ptr [eax],0E8h
                     mov     ecx,offset My722A1
                     sub     ecx,5
@@ -341,10 +343,10 @@ L_NoSelWinA:
                     mov     [ebx+edi+2],eax
 L_NoSelWinB:
 L_No4F05Patch:
-                    ;----- 8/98 ------ blueline unterdrÅcken ------------
+                    ;----- 8/98 ------ blueline unterdr√ºcken ------------
                     mov     eax,ebx         ; EAX := _GP2_CodeStartAdr
                     add     eax,7ac9dh      ; IDA Adresse
-                    sub     eax,10020h      ; standardmÑ·ig
+                    sub     eax,10020h      ; standardm√§√üig
                     mov     ecx,[eax+6]
                     mov     ds:MyCLIPOrgPtr,ecx
                     mov     [eax+6],Offset MyClipFunc_
@@ -352,7 +354,7 @@ L_No4F05Patch:
                     ;-- 8/98 -- Funktion MenuCpyScr anzapfen ------------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,7ac6bh  ; IDA Adresse
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     mov     ecx,[eax+6]
                     mov     ds:MyMNUOrgPtr,ecx
                     mov     [eax+6],Offset MyMenuFunc_
@@ -361,7 +363,7 @@ L_No4F05Patch:
                     ;-- 8/98 ---- patch gp2 framebuffer ----------------
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,718adh  ; IDA Adresse von 'mov edi,0A0000'
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     cmp     dword ptr [eax],0A0000BFh
                     jne     NotMyDrawView
                     or      dword ptr ds:_flagfield,2
@@ -375,7 +377,7 @@ L_No4F05Patch:
                     ;-- 9/99 ---- patch gp2 framebuffer for camview in vga ---
                     mov     eax,ebx     ; EAX := _GP2_CodeStartAdr
                     add     eax,71842h  ; IDA Adresse von 'mov edi,0A1400'
-                    sub     eax,10020h  ; standardmÑ·ig
+                    sub     eax,10020h  ; standardm√§√üig
                     cmp     dword ptr [eax],0A1400BFh
                     jne     NotMyDrawView2
                     ;----- die Adresse des Originalcalls absolut machen -----
@@ -426,7 +428,7 @@ MyClipFunc_     endp
 
 MyDrawFunc_     proc    near
                 ;---- Test 8/98 ---------------
-                ;---- öbergabe: ESI schon auf scr gesetzt -----
+                ;---- √úbergabe: ESI schon auf scr gesetzt -----
                 ;---- Flags noch von 'test _GP2_UpdateCockpit,0FFh' gesetzt
                 jnz     IgnoreNow      ; no patch for cockpitupdate
                 cmp     dword ptr ds:_activepage,0
@@ -535,6 +537,8 @@ _F1NativeCaptionWrapped proc near
                 retn
 _F1NativeCaptionWrapped endp
 
+
+
 F1CockpitWrapped proc near
                 pushfd
                 pushad
@@ -599,7 +603,7 @@ Hook_AfterGp2Init endp
 
 ;----- Frank 10/98 ---- Visual Output to CamView SVGA too ------
 DrawSvgaCamView proc    near
-                ;---- öbergabe: ESI schon auf scr gesetzt -----
+                ;---- √úbergabe: ESI schon auf scr gesetzt -----
                 cmp     dword ptr ds:_activepage,0
                 je      NoDSCVPatch    ; no patching for page '0'
                 pushad
@@ -620,7 +624,7 @@ DrawSvgaCamView endp
 
 ;----- Frank 09/99 ---- Visual Output to CamView VGA too -------
 DrawVgaCamView  proc    near
-                ;---- öbergabe: ESI schon auf scr gesetzt -----
+                ;---- √úbergabe: ESI schon auf scr gesetzt -----
                 cmp     dword ptr ds:_activepage,0
                 je      NoDVCVPatch    ; no patching for page '0'
                 pushad
@@ -692,7 +696,7 @@ Hook_FES        proc    near
                 ;--- ja, wir sind in den pits, WatchSeg laden ----
                 mov     eax,ds:_GP2_MistSeg
                 mov     eax,[eax]           ; first TrackSeg laden
-                mov     eax,[eax+44h]           ; Ñqu. in den Pits laden
+                mov     eax,[eax+44h]           ; √§qu. in den Pits laden
                 movzx   eax,word ptr [eax+1Ah]
                 cmp     ax,word ptr [edi+1Ah]
                 jne     PitsButOther     ; jmp, falls in anderem Segment
@@ -773,6 +777,17 @@ Hook_DelTimes   endp
 ;----- Frank 8/98 ---- don't show fastest lap if necc. -----
 Hook_PrnFastestLap proc  near
                 pushfd
+                pushad
+                call   dword ptr ds:_fpF1SuppressNativeFastest
+                test   eax,eax
+                jz     CheckLegacyFastest
+                popad
+                popfd
+                retn
+CheckLegacyFastest:
+                popad
+                cmp    dword ptr ds:_SupressFastestLap,0
+                je     PrnNow
                 cmp    dword ptr ds:_activepage,9       ; at the line?
                 jne    PrnNow
                 popfd
@@ -1033,7 +1048,7 @@ ahfcode_hooks:
                 dd      7aecah, swAlwaysTrue, Hook_LoadSyst,        MyOrgLoadSyst   ; gp2's loading system
                 dd      8dfe1h, swAlwaysTrue, Hook_DecodePic,       MyOrgDecodePic  ; gp2's uncompressing a pic (bugfix)
 
-                dd      6e402h, _SupressFastestLap, Hook_PrnFastestLap,   MyOrgPFLJmp
+                dd      6e402h, _F1FastestHook, Hook_PrnFastestLap,   MyOrgPFLJmp
 
                 dd      91d7ah, _LinkEstablished, MyComSendChar,  MyOrgCSCJmp       ; for ipx link
                 dd      91e4dh, _LinkEstablished, MyComSendChar,  MyOrgCSCJmp       ; for ipx link

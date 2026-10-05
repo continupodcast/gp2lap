@@ -209,7 +209,7 @@ int main(int argc, const char *argv[])
 #endif
 
 	printf(GP2LAP_BANNER_STR);
-    printf("F1 HUD 0.31 - 90s theme (HudTheme) - keys 3 / TAB / 4 / 5 / 6 / 7\n");
+    printf("F1 HUD 0.35 - broadcast panels / map zoom - keys 3 / TAB / 4 / 5 / 6 / 7\n");
     F1DiagBoot();
 #ifdef SOCKCLNT
 	printf("This version of GP2Lap was compiled as a socket client.\n");

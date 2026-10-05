@@ -58,7 +58,7 @@ void F1DiagBoot(void)
 {
     FILE *f=fopen("F1HUD.LOG","w");
     GapDiagBoot();
-    if(f) { fputs("F1 HUD 0.32 - early route hold / partial gaps / millisecond means - booted\n",f); fclose(f); }
+    if(f) { fputs("F1 HUD 0.35 - modern panels / map cycle and zoom - booted\n",f); fclose(f); }
     /* Diagnostic builds alone create F1GRID.LOG. */
 }
 void F1ControlInit(void)
@@ -166,16 +166,18 @@ void F1ToggleCard(void)
 }
 void F1ToggleMap(void)
 {
-    if(!(activepage&PAGE_F1MAP)) { fullMap=0; F1TogglePart(PAGE_F1MAP); }
-    else { fullMap=!fullMap; F1DiagLog(fullMap?"KEY 6: FULL TRACK":"KEY 6: LOCAL MAP"); }
+    if(!(activepage&PAGE_F1MAP)) { fullMap=1; F1TogglePart(PAGE_F1MAP); }
+    else if(fullMap) { fullMap=0; F1DiagLog("KEY 6: LOCAL MAP"); }
+    else F1TogglePart(PAGE_F1MAP);
 }
-/* 90s theme, TV view, race: key 5 cycles plate -> DIFFERENCE -> off, like key 4
-   with sectors/microsectors. Both share the bottom-centre slot. Qualifying and
-   onboard keep the plain plate on/off; the modern theme is unchanged. */
+void F1MapZoom(void) { if((activepage&PAGE_F1MAP) && fullMap) F1CycleMapZoom(); }
+/* TV race: key 5 cycles plate -> gap panel -> off. Modern CURRENT GAP and
+   90s DIFFERENCE share the bottom-centre slot with the driver plate.
+   Qualifying and onboard keep the plain plate on/off. */
 static int driverDiff;
 void F1ToggleDriver(void)
 {
-    if(f1_theme==F1_THEME_90S && !F1CockpitView && pSessionMode && (*pSessionMode&0x80)
+    if(!F1CockpitView && pSessionMode && (*pSessionMode&0x80)
        && (activepage&PAGE_F1DRIVER) && !driverDiff) {
         driverDiff=1;F1DiagLog("KEY 5: DIFFERENCE");return;
     }
@@ -343,10 +345,13 @@ void F1Compose(unsigned char *dst)
     if(F1CockpitView && ppCockpitCS && *ppCockpitCS) focus=(*ppCockpitCS)->id&0x3f;
     else if(ppSelectedCS && *ppSelectedCS) focus=(*ppSelectedCS)->id&0x3f;
     if(activepage&PAGE_F1MAP) F1MapCompose(dst,pal,focus);
-    /* 90s TV race with key 5 on DIFFERENCE: it replaces the plate in the same slot.
+    /* TV race with key 5 on the gap panel: it replaces the plate in the same slot.
        Elsewhere (qualifying, onboard) that choice falls back to the plate. */
-    slot90=f1_theme==F1_THEME_90S && !F1CockpitView && driverDiff && pSessionMode && (*pSessionMode&0x80);
-    if(slot90 && (activepage&PAGE_F1DRIVER) && count) F1Render90Difference(dst,pal,rows,count,focus);
+    slot90=!F1CockpitView && driverDiff && pSessionMode && (*pSessionMode&0x80);
+    if(slot90 && (activepage&PAGE_F1DRIVER) && count) {
+        if(f1_theme==F1_THEME_90S) F1Render90Difference(dst,pal,rows,count,focus);
+        else F1RenderCurrentGap(dst,pal,rows,count,focus);
+    }
     if((activepage&PAGE_F1DRIVER) && !slot90) {
         isQualy=pSessionMode && !(*pSessionMode&0x80);
         if(isQualy) {
@@ -366,10 +371,20 @@ void F1Compose(unsigned char *dst)
     } else if(ppSelectedCS && *ppSelectedCS) focus=(*ppSelectedCS)->id&0x3f;
     for(i=0;i<n;i++) { visible[i]=rows[start+i]; visible[i].focused=visible[i].id==focus; }
     F1RenderRace(dst,pal,visible,n,leaderLap,GP2_LapsInThisRace?*GP2_LapsInThisRace:0,F1RaceMode());
-    if(f1_theme==F1_THEME_90S) {
-        if(fastShow && pCurTime && *pCurTime>=fastAt && *pCurTime-fastAt<F1_FASTEST_BANNER_MS)
+    if(fastShow && pCurTime && *pCurTime>=fastAt && *pCurTime-fastAt<F1_FASTEST_BANNER_MS) {
+        if(f1_theme==F1_THEME_90S)
             F1Render90Fastest(dst,pal,fastId,(long)fastBest,F1CockpitView?F1_DRIVER_Y+F1_DRIVER_H+4:F1_DRIVER_Y);
-        else fastShow=0;
-    }
+        else F1RenderModernFastest(dst,pal,fastId,(long)fastBest,F1_DRIVER_Y+F1_DRIVER_H+4);
+    } else fastShow=0;
 }
+/* Install the original GP2Lap fastest-caption hook for both HUD themes.
+   Keep the user's atlNoFastestLap switch and the original At The Line case. */
+extern unsigned long SupressFastestLap;
+unsigned long F1FastestHook=1;
+int F1SuppressNativeFastest(void)
+{
+    return SupressFastestLap && pUseSVGA && *pUseSVGA &&
+        (activepage&PAGE_F1TOWER) && pSessionMode && (*pSessionMode&0x80);
+}
+int (*fpF1SuppressNativeFastest)(void)=F1SuppressNativeFastest;
 void (*fpF1Compose)(unsigned char *)=F1Compose;

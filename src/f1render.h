@@ -41,6 +41,9 @@ void F1RenderMicro(unsigned char *screen,const unsigned char *palette,const unsi
 #define F1_MAP_X 492
 #define F1_MAP_Y 8
 #define F1_MAP_SIZE 140
+void F1CycleMapZoom(void);
+void F1RenderCurrentGap(unsigned char *,const unsigned char *,const F1Row *,int,int);
+void F1RenderModernFastest(unsigned char *,const unsigned char *,int,long,int);
 typedef struct { double x,y; } F1MapPoint;
 typedef struct { int id,pos,out; double x,y,angle; } F1MapCar;
 void F1RenderMap(unsigned char *dst,const unsigned char *pal,const F1MapPoint *track,int count,
