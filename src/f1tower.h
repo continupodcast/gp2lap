@@ -9,6 +9,8 @@ void F1Toggle(void);
 void F1ToggleCard(void);
 void F1ToggleDriver(void);
 void F1ToggleMap(void);
+void F1MapZoom(void);
+int F1SuppressNativeFastest(void);
 void F1Tab(unsigned int scan);
 void F1RaceSession(int fresh);
 void F1ControlInit(void);

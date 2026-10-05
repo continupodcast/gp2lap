@@ -39,7 +39,8 @@ function readGP2(bytes) {
   if(team===13 && objectByte(2,ids+26)===0 && objectByte(2,ids+27)===0)break;
   const name=stringAt(teams+team*13,13);if(!name)fail();const drivers=[];
   for(let k=0;k<2;k++) {
-   const id=objectByte(2,ids+team*2+k);if(id<1||id>40||seen.has(id))fail();seen.add(id);
+   // GP2 stores player flags in bits 6 and 7; the CarId occupies bits 0-5.
+   const id=objectByte(2,ids+team*2+k)&0x3f;if(id<1||id>40||seen.has(id))fail();seen.add(id);
    const name=stringAt(names+(id-1)*24,24);if(!name)fail();drivers.push({id,name});
   }
   result.push({name,drivers});

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <ctype.h>
+#include <stdlib.h>
 #include "f1render.h"
 #include "f1config.h"
 #include "f1assets.h"
@@ -171,12 +172,12 @@ void F1RenderRace(unsigned char *dst,const unsigned char *pal,const F1Row *rows,
         } else if(mode==2) sprintf(label,"%d",row->stops);
         else if(row->out) strcpy(label,"OUT");
         else if(row->pit) strcpy(label,"IN PIT");
-        else if(row->pos==1) strcpy(label,"Leader");
+        else if(row->pos==1) strcpy(label,mode==3?"Leader":"Interval");
         else if(mode==3 && row->lapsBehind>0) sprintf(label,"+%dL",row->lapsBehind);
         else if(mode==3) F1Gap(label,row->leaderGap);
         else F1Gap(label,row->gap);
         if(!mode && !row->out && (row->pit || row->pos==1) && team>=0) col=teamcol[team];
-        text(dst,F1_PANEL_X+64,y+1,label,1,col,mode?0:row->out);
+        text(dst,F1_PANEL_X+F1_PANEL_W-3-textwidth(label,1),y+1,label,1,col,mode?0:row->out);
         if(row->fastest) badge(dst,F1_PANEL_X+F1_PANEL_W+1,y,1);
     }
 }
@@ -320,7 +321,7 @@ void F1RenderQualy(unsigned char *dst,const unsigned char *pal,const F1QRow *row
         sprintf(label,"%ld:%02ld",remaining/60000,(remaining/1000)%60);
         text(dst,F1_PANEL_X+F1_Q_W-3-textwidth(label,1),F1_PANEL_Y+3,label,1,remaining<120000?sectorcol[2]:-1,0);
     }
-    text(dst,F1_PANEL_X+64,F1_PANEL_Y+21,"BEST / GAP",1,-1,0);
+    text(dst,F1_PANEL_X+F1_Q_W-3-textwidth("BEST / GAP",1),F1_PANEL_Y+21,"BEST / GAP",1,-1,0);
     for(i=0;i<n;i++) {
         r=&rows[start+i];y=F1_PANEL_Y+F1_Q_HEADER+i*F1_ROW_H;di=driver(r->id);team=di<0?-1:f1_drivers[di].team;
         if(compact && r->id==focus) bar(dst,F1_PANEL_X,y,2,F1_ROW_H-1,team<0?sectorcol[1]:teamcol[team]);
@@ -332,7 +333,7 @@ void F1RenderQualy(unsigned char *dst,const unsigned char *pal,const F1QRow *row
         else if(compact && r->id==focus) F1QTime(label,r->best,0);
         else if(gaps && r->pos>1 && leader) F1QDelta(label,r->best-leader);
         else F1QTime(label,r->best,0);
-        clipRight=F1_PANEL_X+F1_Q_W-2;text(dst,F1_PANEL_X+64,y+1,label,1,-1,0);
+        clipRight=F1_PANEL_X+F1_Q_W-3;text(dst,clipRight-textwidth(label,1),y+1,label,1,-1,0);
         if(r->pit) badge(dst,F1_PANEL_X+F1_Q_W+1,y,0);
     }
 }
@@ -383,6 +384,9 @@ static void mapPixel(int x,int y,int color)
     if((fullMapDrawing || dx*dx+dy*dy<=68*68) && x>=F1_MAP_X && x<F1_MAP_X+140 && y>=F1_MAP_Y && y<F1_MAP_Y+140)
         mapImage[y*640+x]=(unsigned char)color;
 }
+static int mapZoom;
+static const double mapZoomScale[3]={1.0,1.25,2.0};
+void F1CycleMapZoom(void) { mapZoom=(mapZoom+1)%3; }
 static void mapPoint(double x,double y,const F1MapCar *focus,double co,double si,double *sx,double *sy)
 {
     double dx=-(x-focus->x),dy=y-focus->y;
@@ -477,7 +481,10 @@ void F1RenderFullMap(unsigned char *dst,const unsigned char *pal,const F1MapPoin
     }
     span=maxx-minx; if(maxy-miny>span) span=maxy-miny;
     if(span<=0) return;
-    scale=112.0/span; ox=F1_MAP_X+70+(maxx+minx)*scale/2; oy=F1_MAP_Y+70-(maxy+miny)*scale/2;
+    scale=112.0/span*mapZoomScale[mapZoom];
+    ax=(maxx+minx)/2;ay=(maxy+miny)/2;
+    if(mapZoom) for(i=0;i<n;i++) if(cars[i].id==focusId) { ax=cars[i].x;ay=cars[i].y;break; }
+    ox=F1_MAP_X+70+ax*scale; oy=F1_MAP_Y+70-ay*scale;
     palette(pal); clipRight=F1_MAP_X+140; fullMapDrawing=1;
     for(y=F1_MAP_Y;y<F1_MAP_Y+140;y++) memcpy(mapImage+y*640+F1_MAP_X,dst+y*640+F1_MAP_X,140);
     for(i=0;i<count;i++) {
@@ -498,3 +505,4 @@ void F1RenderFullMap(unsigned char *dst,const unsigned char *pal,const F1MapPoin
 }
 
 #include "f1r90.inc"
+#include "f1modern.inc"

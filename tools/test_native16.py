@@ -8,7 +8,7 @@ root=Path(__file__).resolve().parents[1]
 exe=(root.parent/'upload/GP2(1).EXE').read_bytes()
 code=exe[0x88254:0x88254+0x99730]
 font=(root/'validation/native-caption-font.bin').read_bytes()
-def render(text,view=0):
+def render(text,view=0,hidden=False):
  u=Uc(UC_ARCH_X86,UC_MODE_32);u.mem_map(0,0x900000);u.mem_write(0x10000,code)
  def put(a,n):u.mem_write(a,struct.pack('<I',n))
  def get(a):return struct.unpack('<I',u.mem_read(a,4))[0]
@@ -37,7 +37,15 @@ def render(text,view=0):
  def watch(uc,access,address,size,value,data):
   if 0x5c95c-640<=address<0x60a5c+640:writes.append(address)
  u.hook_add(UC_HOOK_MEM_WRITE,watch)
+ if hidden:
+  # Same destination-pointer substitution as beforeFastest/after. Execute
+  # the entire original caption routine, including its bookkeeping.
+  put(0xa07c,0x650000)
  run(0x6d792)
+ if hidden:
+  put(0xa07c,0x500000)
+  assert bytes(u.mem_read(0x500000,640*480))==b'\x30'*(640*480)
+  assert any(u.mem_read(0x650000,640*480)), 'replacement destination not drawn'
  width=get(0xb4590);height=get(0xb4594);offset=get(0x39cf4)
  assert 0<width<640 and height==13,(width,height)
  assert offset==57*640+320-width//2,offset
@@ -61,5 +69,6 @@ if __name__=='__main__':
  for i,label in enumerate(labels):
   im,width=render(label);canvas.paste(im,(0,i*26));print(label,width)
  for view in (1,2):render(labels[0],view)
+ for view in (0,1,2):render(labels[4],view,hidden=True)
  canvas.resize((1280,len(labels)*52)).save(root/'validation/native-captions-016.png')
  print('PASS: original x86 renderer, encoded digits, message categories, centered placement, bitmap and framebuffer bounds.')

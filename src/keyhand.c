@@ -61,7 +61,7 @@ void KeyMainHandler()   // called for every frame or so...
             break;
 
         case KEY_6:
-            F1ToggleMap();
+            if(actkbd.lshiftactive) F1MapZoom(); else F1ToggleMap();
             break;
 
         case KEY_5:
@@ -196,8 +196,8 @@ unsigned long GetKbdHandlerCnt(void)
 
 unsigned long RegisterKbdHandler(void *hptr, void *rdptr)
 // register a new kbd handler
-// öbergabe: hptr == handler function
-// RÅckgabe: 0 == failed (table full), 1 == success
+// √úbergabe: hptr == handler function
+// R√ºckgabe: 0 == failed (table full), 1 == success
 
 // EVTL: optionales Release Code blocking noch mit rein
 
@@ -271,8 +271,8 @@ void RemoveAllKbdHandlers(void)
 // UMBENENNEN: SearchHandler oder so
 unsigned long SearchKbdHandler(void *hptr)
 // get a registered kbd/redraw handler's index within kbdhandler[]
-// öbergabe: hptr == handler function
-// RÅckgabe: < KBHANDLERMAX == index, KBHANDLERERR == can't find hptr
+// √úbergabe: hptr == handler function
+// R√ºckgabe: < KBHANDLERMAX == index, KBHANDLERERR == can't find hptr
 {
   if (hcnt > 0) {
     for (i = 0; i < KBHANDLERMAX; i++)
@@ -288,8 +288,8 @@ unsigned long SearchKbdHandler(void *hptr)
 
 unsigned long RemoveKbdHandler(void *hptr)
 // call to remove a registered kbd handler
-// öbergabe: hptr == handler function
-// RÅckgabe: 0 == failed, 1 == success
+// √úbergabe: hptr == handler function
+// R√ºckgabe: 0 == failed, 1 == success
 {
   if ( (hcnt > 0) && ((i = SearchKbdHandler(hptr)) != KBHANDLERERR) ) {
 
@@ -329,8 +329,8 @@ void SaveThisPage(void *dest, void *src, unsigned long lines)
 void ReDrawAllPages(void *caller)
 // call to redraw all active pages, except caller's
 // ACHTUNG: muss auch gehen, falls caller gar nicht mehr in TAB..., oder z.B. caller==NULL
-// öbergabe: caller == &OnReDreaw handler of the caller, i.e. for making sure not to redraw caller
-// RÅckgabe: -
+// √úbergabe: caller == &OnReDreaw handler of the caller, i.e. for making sure not to redraw caller
+// R√ºckgabe: -
 {
   static unsigned long caller_priority;
 
