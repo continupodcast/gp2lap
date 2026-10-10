@@ -120,13 +120,6 @@ void F1Render(unsigned char *dst,const unsigned char *pal,const F1Row *rows,int 
     F1RenderRace(dst,pal,rows,count,lap,total,0);
 }
 /* Compact badges outside the existing panel: no time-column width is lost. */
-static void finishBadge(unsigned char *dst,int x,int y)
-{
-    int xx,yy;
-    /* Same 11x11 indicator slot, bordered black/white checkerboard. */
-    for(yy=0;yy<11;yy++) for(xx=0;xx<11;xx++)
-        dst[(y+yy)*640+x+xx]=(xx==0 || yy==0 || xx==10 || yy==10 || ((xx-1)/3+(yy-1)/3)%2)?badgeBlack:badgeWhite;
-}
 static void badge(unsigned char *dst,int x,int y,int fastest)
 {
     static const unsigned char clock[9]={28,8,62,65,73,73,77,65,62};
@@ -187,8 +180,7 @@ void F1RenderRace(unsigned char *dst,const unsigned char *pal,const F1Row *rows,
         else F1Gap(label,row->gap);
         if(!mode && !row->out && (row->pit || row->pos==1) && team>=0) col=teamcol[team];
         text(dst,F1_PANEL_X+F1_PANEL_W-3-textwidth(label,1),y+1,label,1,col,mode?0:row->out);
-        if(row->finished) finishBadge(dst,F1_PANEL_X+F1_PANEL_W+1,y);
-        else if(row->fastest) badge(dst,F1_PANEL_X+F1_PANEL_W+1,y,1);
+        if(row->fastest) badge(dst,F1_PANEL_X+F1_PANEL_W+1,y,1);
     }
 }
 
@@ -418,20 +410,11 @@ void F1RenderQualyCard(unsigned char *dst,const unsigned char *pal,const F1QCard
    disjoint visible portions are never joined across an off-screen bend. */
 static unsigned char mapImage[640*180];
 static int fullMapDrawing;
-/* Transparent track-only cache. Never retain gameplay pixels or car dots. */
-static unsigned char fullMapLayer[140*140],fullMapMask[140*140],fullMapPal[768];
-static F1MapPoint fullMapTrack[2048],fullMapPits[512];
-static int fullMapValid,fullMapCount,fullMapPitCount,fullMapHasPits,fullMapCapture;
-static double fullMapScale,fullMapOx,fullMapOy;
-
 static void mapPixel(int x,int y,int color)
 {
     int dx=x-(F1_MAP_X+70),dy=y-(F1_MAP_Y+70);
     if((fullMapDrawing || dx*dx+dy*dy<=68*68) && x>=F1_MAP_X && x<F1_MAP_X+140 && y>=F1_MAP_Y && y<F1_MAP_Y+140)
-    {
         mapImage[y*640+x]=(unsigned char)color;
-        if(fullMapCapture) fullMapMask[(y-F1_MAP_Y)*140+x-F1_MAP_X]=1;
-    }
 }
 static int mapZoom;
 static const double mapZoomScale[3]={1.0,1.25,2.0};
@@ -442,7 +425,7 @@ static void mapPoint(double x,double y,const F1MapCar *focus,double co,double si
     *sx=F1_MAP_X+70+(dx*co-dy*si)*0.0825;
     *sy=F1_MAP_Y+70+(dx*si+dy*co)*0.0825;
 }
-static void mapRoadExact(double ax,double ay,double bx,double by,int radius,int color,int stripe)
+static void mapRoad(double ax,double ay,double bx,double by,int radius,int color,int stripe)
 {
     int x,y,x0,x1,y0,y1;double vx=bx-ax,vy=by-ay,den=vx*vx+vy*vy,t,dx,dy;
     x0=(int)(ax<bx?ax:bx)-radius;x1=(int)(ax>bx?ax:bx)+radius;
@@ -455,75 +438,6 @@ static void mapRoadExact(double ax,double ay,double bx,double by,int radius,int 
         t=den?((x-ax)*vx+(y-ay)*vy)/den:0;if(t<0) t=0;if(t>1) t=1;
         dx=x-ax-t*vx;dy=y-ay-t*vy;
         if(dx*dx+dy*dy<=radius*radius) mapPixel(x,y,stripe && ((x+y)/4)%2?stripe:color);
-    }
-}
-/* Like the original key-8 map, rasterize with integer pixel stamps.
-   Connect stamps with Bresenham so this HUD retains continuous roads. */
-static int mapSpanReady,mapDiskSpan[17][33],mapCircleSpan[140];
-static void mapSpans(void)
-{
-    int r,y,x,d;
-    if(mapSpanReady) return;
-    for(r=0;r<=16;r++) for(y=-r;y<=r;y++) {
-        x=r;while(x*x+y*y>r*r)x--;
-        mapDiskSpan[r][y+16]=x;
-    }
-    for(y=0;y<140;y++) {
-        d=y-70;x=68;
-        while(x>=0 && x*x+d*d>68*68)x--;
-        mapCircleSpan[y]=x;
-    }
-    mapSpanReady=1;
-}
-static int mapOutcode(int x,int y,int xmin,int ymin,int xmax,int ymax)
-{
-    return (x<xmin?1:x>xmax?2:0)|(y<ymin?4:y>ymax?8:0);
-}
-static void mapStamp(int x,int y,int radius,int color,int stripe)
-{
-    int row,left,right,w,half,xx,yy;
-    for(yy=-radius;yy<=radius;yy++) {
-        row=y+yy;if(row<F1_MAP_Y || row>=F1_MAP_Y+140)continue;
-        w=mapDiskSpan[radius][yy+16];left=x-w;right=x+w;
-        if(left<F1_MAP_X)left=F1_MAP_X;
-        if(right>F1_MAP_X+139)right=F1_MAP_X+139;
-        if(!fullMapDrawing) {
-            half=mapCircleSpan[row-F1_MAP_Y];if(half<0)continue;
-            if(left<F1_MAP_X+70-half)left=F1_MAP_X+70-half;
-            if(right>F1_MAP_X+70+half)right=F1_MAP_X+70+half;
-        }
-        if(left>right)continue;
-        if(!stripe)memset(mapImage+row*640+left,color,right-left+1);
-        else for(xx=left;xx<=right;xx++)mapImage[row*640+xx]=(unsigned char)(((xx+row)/4)%2?stripe:color);
-    }
-}
-static void mapRoad(double ax,double ay,double bx,double by,int radius,int color,int stripe)
-{
-    int x0,y0,x1,y1,c0,c1,c,x,y,xmin,xmax,ymin,ymax,dx,dy,sx,sy,err,e2,guard;
-    /* Preserve the already validated, cached 1x layer byte for byte. */
-    if(fullMapDrawing && !mapZoom) {mapRoadExact(ax,ay,bx,by,radius,color,stripe);return;}
-    mapSpans();x0=(int)ax;y0=(int)ay;x1=(int)bx;y1=(int)by;
-    xmin=F1_MAP_X-radius;xmax=F1_MAP_X+139+radius;
-    ymin=F1_MAP_Y-radius;ymax=F1_MAP_Y+139+radius;
-    /* Clip the centre line before walking it; off-screen roads never
-       generate thousands of invisible stamps or join unrelated bends. */
-    for(guard=0;guard<8;guard++) {
-        c0=mapOutcode(x0,y0,xmin,ymin,xmax,ymax);c1=mapOutcode(x1,y1,xmin,ymin,xmax,ymax);
-        if(!(c0|c1))break;
-        if(c0&c1)return;
-        c=c0?c0:c1;
-        if(c&8){y=ymax;x=x0+(int)((long)(x1-x0)*(y-y0)/(y1-y0));}
-        else if(c&4){y=ymin;x=x0+(int)((long)(x1-x0)*(y-y0)/(y1-y0));}
-        else if(c&2){x=xmax;y=y0+(int)((long)(y1-y0)*(x-x0)/(x1-x0));}
-        else{x=xmin;y=y0+(int)((long)(y1-y0)*(x-x0)/(x1-x0));}
-        if(c==c0){x0=x;y0=y;}else{x1=x;y1=y;}
-    }
-    if(guard==8)return;
-    dx=abs(x1-x0);dy=-abs(y1-y0);sx=x0<x1?1:-1;sy=y0<y1?1:-1;err=dx+dy;
-    for(;;) {
-        mapStamp(x0,y0,radius,color,stripe);
-        if(x0==x1 && y0==y1)break;
-        e2=2*err;if(e2>=dy){err+=dy;x0+=sx;}if(e2<=dx){err+=dx;y0+=sy;}
     }
 }
 static void mapCar(const F1MapCar *car,const F1MapCar *focus,double co,double si,int selected)
@@ -586,35 +500,8 @@ void F1RenderFullMap(unsigned char *dst,const unsigned char *pal,const F1MapPoin
     const F1MapPoint *pits,int pitcount,const F1MapCar *cars,int n,int focusId)
 {
     double minx,maxx,miny,maxy,scale,span,ox,oy,ax,ay;
-    double focusX=0,focusY=0,bestDistance=-1;
-    int i,j,k,x,y,di,col,hit,focusIndex=-1,order[26],px[26],py[26];
+    int i,j,pass,y,di,col,px[26],py[26];
     if(!dst || !pal || !track || !cars || count<2 || count>2048 || n<1 || n>26 || pitcount<0 || pitcount>512) return;
-    /* Keep the selected marker on the map centreline, avoiding lateral
-       movement from the car's physical position and chassis motion. */
-    for(i=0;i<n;i++) if(cars[i].id==focusId) {focusIndex=i;break;}
-    if(focusIndex>=0) {
-        focusX=cars[focusIndex].x;focusY=cars[focusIndex].y;
-        for(i=0;i<count+(pits && pitcount>1?pitcount-1:0);i++) {
-            double dx,dy,length,t,qx,qy,distance;
-            const F1MapPoint *a,*b;
-            if(i<count) {a=&track[i];b=&track[(i+1)%count];}
-            else {if(!pits)break;a=&pits[i-count];b=a+1;}
-            dx=b->x-a->x;dy=b->y-a->y;length=dx*dx+dy*dy;
-            if(length<=0)continue;
-            t=((cars[focusIndex].x-a->x)*dx+(cars[focusIndex].y-a->y)*dy)/length;
-            if(t<0)t=0;
-            if(t>1)t=1;
-            qx=a->x+t*dx;qy=a->y+t*dy;
-            dx=cars[focusIndex].x-qx;dy=cars[focusIndex].y-qy;distance=dx*dx+dy*dy;
-            if(bestDistance<0 || distance<bestDistance) {bestDistance=distance;focusX=qx;focusY=qy;}
-        }
-    }
-    hit=!mapZoom && fullMapValid && count==fullMapCount && pitcount==fullMapPitCount &&
-        (pits!=NULL)==fullMapHasPits && !memcmp(fullMapPal,pal,768) &&
-        !memcmp(fullMapTrack,track,count*sizeof(*track)) &&
-        (!pits || !memcmp(fullMapPits,pits,pitcount*sizeof(*pits)));
-    if(hit) {scale=fullMapScale;ox=fullMapOx;oy=fullMapOy;}
-    else {
     minx=maxx=track[0].x; miny=maxy=track[0].y;
     for(i=0;i<count+pitcount;i++) {
         if(i>=count && !pits) break;
@@ -628,47 +515,22 @@ void F1RenderFullMap(unsigned char *dst,const unsigned char *pal,const F1MapPoin
     if(span<=0) return;
     scale=112.0/span*mapZoomScale[mapZoom];
     ax=(maxx+minx)/2;ay=(maxy+miny)/2;
-    if(mapZoom && focusIndex>=0) {ax=focusX;ay=focusY;}
+    if(mapZoom) for(i=0;i<n;i++) if(cars[i].id==focusId) { ax=cars[i].x;ay=cars[i].y;break; }
     ox=F1_MAP_X+70+ax*scale; oy=F1_MAP_Y+70-ay*scale;
-    }
     palette(pal); clipRight=F1_MAP_X+140; fullMapDrawing=1;
     for(y=F1_MAP_Y;y<F1_MAP_Y+140;y++) memcpy(mapImage+y*640+F1_MAP_X,dst+y*640+F1_MAP_X,140);
-    if(hit) {
-        for(y=0;y<140;y++) for(x=0;x<140;x++)
-            if(fullMapMask[y*140+x]) mapImage[(y+F1_MAP_Y)*640+x+F1_MAP_X]=fullMapLayer[y*140+x];
-    } else {
-    fullMapCapture=!mapZoom;
-    if(fullMapCapture) memset(fullMapMask,0,sizeof(fullMapMask));
     for(i=0;i<count;i++) {
         j=(i+1)%count;
         mapRoad(ox-track[i].x*scale,oy+track[i].y*scale,ox-track[j].x*scale,oy+track[j].y*scale,2,badgeWhite,0);
     }
     if(pits) for(i=1;i<pitcount;i++) mapRoad(ox-pits[i-1].x*scale,oy+pits[i-1].y*scale,ox-pits[i].x*scale,oy+pits[i].y*scale,1,nearest(pal,150,120,40),0);
-    if(fullMapCapture) {
-        for(y=0;y<140;y++) memcpy(fullMapLayer+y*140,mapImage+(y+F1_MAP_Y)*640+F1_MAP_X,140);
-        memcpy(fullMapTrack,track,count*sizeof(*track));
-        if(pits) memcpy(fullMapPits,pits,pitcount*sizeof(*pits));
-        memcpy(fullMapPal,pal,768);fullMapCount=count;fullMapPitCount=pitcount;
-        fullMapHasPits=pits!=NULL;fullMapScale=scale;fullMapOx=ox;fullMapOy=oy;fullMapValid=1;
-    }
-    fullMapCapture=0;
-    }
     for(i=0;i<n;i++) { px[i]=(int)(ox-cars[i].x*scale); py[i]=(int)(oy+cars[i].y*scale); }
-    if(focusIndex>=0) {px[focusIndex]=(int)(ox-focusX*scale);py[focusIndex]=(int)(oy+focusY*scale);}
-    /* Backmarkers first; better positions remain above overlapping dots. */
-    for(i=0;i<n;i++)order[i]=i;
-    for(i=1;i<n;i++) {
-        k=order[i];j=i;
-        while(j>0 && (cars[order[j-1]].pos>0?cars[order[j-1]].pos:99)<(cars[k].pos>0?cars[k].pos:99)) {
-            order[j]=order[j-1];j--;
-        }
-        order[j]=k;
-    }
-    for(k=0;k<n;k++) {
-        i=order[k];
-        if(cars[i].out && cars[i].id!=focusId) continue;
+    /* Viewed car last so it remains visible in a pack. */
+    for(pass=0;pass<2;pass++) for(i=0;i<n;i++) {
+        if((cars[i].id==focusId)!=(pass==1) || (cars[i].out && cars[i].id!=focusId)) continue;
         di=driver(cars[i].id);col=di<0?badgeWhite:teamcol[f1_drivers[di].team];
-        mapRoad(px[i],py[i],px[i],py[i],cars[i].id==focusId?3:2,col,0);
+        if(pass==1) mapRoad(px[i],py[i],px[i],py[i],3,badgeWhite,0);
+        mapRoad(px[i],py[i],px[i],py[i],2,col,0);
     }
     for(y=F1_MAP_Y;y<F1_MAP_Y+140;y++) memcpy(dst+y*640+F1_MAP_X,mapImage+y*640+F1_MAP_X,140);
     fullMapDrawing=0;
@@ -676,61 +538,3 @@ void F1RenderFullMap(unsigned char *dst,const unsigned char *pal,const F1MapPoin
 
 #include "f1r90.inc"
 #include "f1modern.inc"
-
-/* Centre actual visible bounds inside the pit-card header. */
-static void pitHeaderText(unsigned char *dst,int x,int y,int w,int h,const char *s,int font,int leftAligned)
-{
-    int c,xx,yy,advance=0,left=1000,right=-1,top=16,bottom=-1;
-    const unsigned char *glyph,*width=font==1?f1_width1:f1_width2;
-    const char *q=s;
-    while(*q) {
-        c=(unsigned char)*q++;if(c<32 || c>=127)continue;c-=32;
-        glyph=font==1?f1_font1[c]:f1_font2[c];
-        for(yy=0;yy<16;yy++)for(xx=0;xx<width[c];xx++)if(glyph[yy*20+xx]) {
-            if(advance+xx<left)left=advance+xx;
-            if(advance+xx>right)right=advance+xx;
-            if(yy<top)top=yy;
-            if(yy>bottom)bottom=yy;
-        }
-        advance+=width[c];
-    }
-    if(right<left)return;
-    text(dst,x+(leftAligned?0:(w-(right-left+1))/2)-left,y+(h-(bottom-top+1))/2-top,s,font,-1,0);
-}
-
-/* Bottom-right pit cards, stacked upwards. Overflow continues to the left. */
-void F1RenderPitDisplays(unsigned char *dst,const unsigned char *pal,const F1PitDisplay *cards,int count)
-{
-    int i,di,team,x,y,j,k,font,modern,px,available;
-    char name[F1_NAME_LEN],number[16],elapsed[24];
-    palette(pal);modern=f1_theme!=F1_THEME_90S;
-    if(!modern)palette90(pal);
-    for(i=0;i<count;i++) {
-        x=640-8-104-(i/10)*108;y=F1_TV_SLOT_BOTTOM-34-(i%10)*37;
-        if(x<F1_PANEL_X+F1_PANEL_W+4)break;
-        clipRight=x+100;di=driver(cards[i].id);team=di<0?-1:f1_drivers[di].team;
-        if(team<0 || team>=F1_TEAM_COUNT)team=-1;
-        background(dst,x,y,104,34);
-        bar(dst,x,y,16,15,modern?badgeBlack:c90yellow);
-        sprintf(number,"%d",cards[i].position);
-        if(modern)pitHeaderText(dst,x,y,16,15,number,1,0);
-        else tc90(dst,x,y,16,15,number,F90_NAME,c90ink,NULL);
-        px=x+18;
-        if(modern && team>=0) {logo(dst,px,y+1,team);px+=18;}
-        strcpy(name,di<0?"UNKNOWN":f1_drivers[di].last);
-        for(j=0;name[j];j++)name[j]=(char)toupper((unsigned char)name[j]);
-        font=1;available=x+100-px;
-        if(modern && textwidth(name,font)>available)font=2;
-        k=(int)strlen(name);while(modern && k>0 && textwidth(name,font)>available)name[--k]=0;
-        if(modern)pitHeaderText(dst,px,y,available,15,name,font,1);
-        else t90(dst,px,vc90(y,15,F90_NAME),name,F90_NAME,-1,NULL,0,available);
-        bar(dst,x,y+15,104,2,modern?(team>=0?teamcol[team]:badgeWhite):c90yellow);
-        if(modern)text(dst,x+4,y+19,"IN PIT",1,-1,0);
-        else t90(dst,x+4,vc90(y+17,17,F90_NAME),"IN PIT",F90_NAME,-1,NULL,0,40);
-        sprintf(elapsed,"%lu.%lu",cards[i].elapsed/1000,(cards[i].elapsed%1000)/100);
-        if(modern)text(dst,x+100-textwidth(elapsed,0),y+18,elapsed,0,-1,0);
-        else {int tw=w90(elapsed,F90_NAME);if(tw>52)tw=52;
-            t90(dst,x+100-tw,vc90(y+17,17,F90_NAME),elapsed,F90_NAME,-1,NULL,0,52);}
-    }
-    clipRight=640;
-}

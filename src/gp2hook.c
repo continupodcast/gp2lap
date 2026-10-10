@@ -947,6 +947,7 @@ static void LogSessionData(GP2LapRecSession *rec)
 void __near SOSHook(void)
 {
 	GP2LapRecSession *rec = (GP2LapRecSession*) Log_GetRecBuf(GP2LRTYPE_SESSION);
+    F1AccEvent("NEW_SESSION");
     F1RaceSession(1);
     F1QReset();
     F1VideoReset();
@@ -972,6 +973,7 @@ void __near SOSHook(void)
 void __near LOSHook(void)
 {
 	GP2LapRecSession *rec = (GP2LapRecSession*) Log_GetRecBuf(GP2LRTYPE_SESSION);
+    F1AccEvent("LOAD_SESSION");
     F1RaceSession(0);
     F1QReset();
     F1VideoReset();
@@ -1099,6 +1101,7 @@ static void LogLapData(GP2LapRecLap *rec)
 // Start of lap (actually logged as a 'end of lap')
 void __near SOLHook(void)
 {
+    F1AccEvent("LAP");
 	if (pCurrentCS && (opt_log_cc || GP2_CAR_ISPLAYER(pCurrentCS->id))) {
 		int w;
 		if (!*pIsReplay) {
@@ -1394,6 +1397,7 @@ void DoSendPacket()
 // End of frame
 void __near EOFHook(void)
 {
+    F1AccEvent("EOF");
     F1Update();
 	pCurrentCS = NULL;
 	if (ppPlayerCS && *ppPlayerCS)
@@ -1478,6 +1482,7 @@ void __near PrfHook(void)
 // Entering cockpit
 void __near ECPHook(void)
 {
+    F1AccEvent("ENTER_COCKPIT");
 #ifdef SOCKCLNT
 	DWORD *pULongCfg = NULL;
 	char *pStrCfg = NULL;
@@ -1509,7 +1514,8 @@ void __near ECPHook(void)
 // Leaving cockpit
 void __near LCPHook(void)
 {
-    F1AdvancedReset();
+    F1AccEvent("LEAVE_COCKPIT");
+    F1AdvancedSuspend();
     F1ControlCancel();
     F1VideoReset();
 #ifdef SOCKCLNT

@@ -1,0 +1,15 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
+const root=path.resolve(__dirname,'..'),html=fs.readFileSync(path.join(root,'release/EDITOR.html'),'utf8'),script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+new vm.Script(script);
+const context=vm.createContext({structuredClone,TextEncoder,TextDecoder,Blob,Uint8Array});
+vm.runInContext(script.slice(0,script.indexOf("$('export').onclick")),context);
+const run=s=>vm.runInContext(s,context);
+run('validate(state);state.controls.hideRiding=true;state.controls.hideViewing=false;state.controls.hideRetirement=true;state.controls.hideWinner=true;state.controls.hidePit=true;state.controls.hidePause=true;var roundtrip=parseCFG(cfg());validate(roundtrip)');
+for(const key of ['hideRiding','hideRetirement','hideWinner','hidePit','hidePause'])assert.equal(run('roundtrip.controls.'+key),true);
+assert.equal(run('roundtrip.controls.hideViewing'),false);
+run("var legacy=parseCFG('[F1 Controls]\\nHideCameraCaption = 1\\nHideRetirementCaption = 1');validate(legacy)");
+assert.equal(run('legacy.controls.hideRiding'),true);assert.equal(run('legacy.controls.hideViewing'),true);assert.equal(run('legacy.controls.hideRetirement'),true);
+run('var project=structuredClone(INITIAL);delete project.controls.hidePause;validate(project)');assert.equal(run('project.controls.hidePause'),false);
+assert.throws(()=>run("project.controls.hidePause='yes';validate(project)"));
+run('state=structuredClone(INITIAL);validate(state)');fs.writeFileSync(path.join(root,'validation/editor-caption-export.cfg'),run('cfg()'));
+console.log('PASS: all caption options persist through CFG/project roundtrip; legacy master imports; defaults visible; invalid controls rejected.');

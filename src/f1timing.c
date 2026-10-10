@@ -2,10 +2,11 @@
 #include <string.h>
 #include <stdio.h>
 #include "f1qualy.h"
+#include "f1splitcolor.h"
 typedef struct {
     int seen,lap,split,pit,outlap,active,postColor[3],liveColor[3],pole;
     unsigned long start,postUntil,gapUntil;
-    long best,ref[3],pb[3],lapRef[3],live[3],last,gap;
+    long best,ref[3],pb[3],lapRef[3],live[3],postValue[3],last,gap;
     int hasGap,gapLeader;
     long gapReferenceBest;
 } State;
@@ -15,13 +16,6 @@ static int nrows;
 static long global[3];
 static long valid(unsigned long t) { return t && !(t&0xf0000000UL) && t<=3600000UL?(long)t:0; }
 static void minimum(long *a,long b) { if(b>0 && (!*a || b<*a)) *a=b; }
-static int color(long value,long personal,long overall)
-{
-    if(value<=0) return 0;
-    if(overall>0 && value<=overall) return 3;
-    if(!personal || value<personal) return 1;
-    return 2;
-}
 void F1QTime(char *s,long ms,int sector)
 {
     if(ms<=0) { strcpy(s,"-"); return; }
@@ -74,7 +68,8 @@ void F1QTick(const F1QCar *cars,int count,unsigned long clock)
         if(complete) {
             parts[0]=s1;parts[1]=s2-s1;parts[2]=last-s2;
             for(k=0;k<3;k++) {
-                s->postColor[k]=color(parts[k],s->lapRef[k],global[k]);
+                s->postValue[k]=parts[k];
+                s->postColor[k]=F1SplitColor(parts[k],s->lapRef[k],global[k]);
                 minimum(&s->pb[k],parts[k]);minimum(&global[k],parts[k]);
             }
             s->last=last;s->postUntil=clock+8000;s->pole=(!leaderBest || last<leaderBest);
@@ -99,7 +94,7 @@ void F1QTick(const F1QCar *cars,int count,unsigned long clock)
             if(c->split==0 || c->split==1) s->live[0]=s1;
             if(c->split==1 && s1 && s2>s1) s->live[1]=s2-s1;
             for(k=0;k<2;k++) {
-                s->liveColor[k]=color(s->live[k],s->lapRef[k],global[k]);
+                s->liveColor[k]=F1SplitColor(s->live[k],s->lapRef[k],global[k]);
                 minimum(&s->pb[k],s->live[k]);minimum(&global[k],s->live[k]);
             }
             if(s->seen && c->split!=s->split && (c->split==0 || c->split==1)) {
@@ -114,6 +109,21 @@ void F1QTick(const F1QCar *cars,int count,unsigned long clock)
         memcpy(rows[nrows].live,s->live,sizeof(rows[nrows].live));
         memcpy(rows[nrows].color,s->liveColor,sizeof(rows[nrows].color));nrows++;
     }
+    /* All cars must see this frame's final session records, independent
+       of snapshot order. Retire historical purple marks immediately. */
+    for(i=1;i<=40;i++) if(state[i].seen) {
+        s=&state[i];
+        for(k=0;k<3;k++) {
+            if(s->postColor[k]==3 && global[k]>0 && s->postValue[k]>global[k])
+                s->postColor[k]=1;
+            if(k<2 && s->live[k]>0) {
+                if(s->liveColor[k]==3 && global[k]>0 && s->live[k]>global[k])
+                    s->liveColor[k]=1;
+            }
+        }
+    }
+    for(i=0;i<nrows;i++)
+        memcpy(rows[i].color,state[rows[i].id].liveColor,sizeof(rows[i].color));
     for(i=1;i<nrows;i++) {
         tmp=rows[i];j=i;
         while(j>0 && tmp.best && (!rows[j-1].best || tmp.best<rows[j-1].best)) { rows[j]=rows[j-1];j--; }

@@ -14,6 +14,9 @@ static int configured;
 int f1_gap_start=50;
 unsigned long f1_gap_update=4000,f1_position_time=1000;
 int f1_hide_camera_caption=0, f1_fuel_enabled;
+int f1_allow_external_pit_camera=0;
+int f1_hide_riding_caption,f1_hide_viewing_caption,f1_hide_winner_caption;
+int f1_hide_pit_caption,f1_hide_pause_caption;
 unsigned long f1_fuel_duration=3000;
 unsigned char f1_fuel_targets[41];
 int f1_micro_enabled=1, f1_hide_retirement_caption=0;
@@ -35,7 +38,9 @@ static void defaults(void)
     strcpy(f1_team_names[13],"TEAM 14");
     memset(f1_colors[13],255,3);
     memset(logo_files,0,sizeof(logo_files));
-    f1_hide_camera_caption=0; f1_fuel_enabled=0; f1_fuel_duration=3000;
+    f1_hide_camera_caption=0; f1_fuel_enabled=0; f1_allow_external_pit_camera=0;
+    f1_hide_riding_caption=f1_hide_viewing_caption=f1_hide_winner_caption=0;
+    f1_hide_pit_caption=f1_hide_pause_caption=0; f1_fuel_duration=3000;
     f1_micro_enabled=1;f1_hide_retirement_caption=0;f1_theme=F1_THEME_MODERN;
     memset(f1_fuel_targets,0,sizeof(f1_fuel_targets));
     memset(f1_custom_logo_loaded,0,sizeof(f1_custom_logo_loaded));
@@ -122,7 +127,13 @@ int F1ConfigLoad(const char *cfgname)
         }
         if(same(section,"F1 Controls")) {
             char raw[128],*end,*q;long v;
-            if(same(key,"HideCameraCaption")) f1_hide_camera_caption=atoi(value)!=0;
+            if(same(key,"AllowExternalPitCamera")) f1_allow_external_pit_camera=atoi(value)!=0;
+            else if(same(key,"HideCameraCaption")) f1_hide_camera_caption=atoi(value)!=0;
+            else if(same(key,"HideRidingCaption")) f1_hide_riding_caption=atoi(value)!=0;
+            else if(same(key,"HideViewingCaption")) f1_hide_viewing_caption=atoi(value)!=0;
+            else if(same(key,"HideRaceWinnerCaption")) f1_hide_winner_caption=atoi(value)!=0;
+            else if(same(key,"HidePitCaption")) f1_hide_pit_caption=atoi(value)!=0;
+            else if(same(key,"HidePauseCaption")) f1_hide_pause_caption=atoi(value)!=0;
             else if(same(key,"HideRetirementCaption")) f1_hide_retirement_caption=atoi(value)!=0;
             else if(same(key,"FuelDrainEnabled")) f1_fuel_enabled=atoi(value)!=0;
             else if(same(key,"HudTheme")) f1_theme=atoi(value)==F1_THEME_90S?F1_THEME_90S:F1_THEME_MODERN;

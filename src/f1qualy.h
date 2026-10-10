@@ -3,11 +3,14 @@
 #define F1_Q_MAX 28
 #define F1_Q_W 116
 #define F1_Q_HEADER 36
-#define F1_CARD_X 422
+#define F1_CARD_X ((640-F1_CARD_W)/2)
 #define F1_CARD_Y_TV 302
-#define F1_CARD_Y_COCKPIT 388
+#define F1_CARD_Y_COCKPIT 8
 #define F1_CARD_W 210
 #define F1_CARD_H 84
+#define F1_CARD_COMPACT_W 280
+#define F1_CARD_COMPACT_H 50
+#define F1_CARD_COMPACT_X ((640-F1_CARD_COMPACT_W)/2)
 /* Time zero is unavailable. Input times retain GP2 validity bits. */
 typedef struct {
     int id,active,lap,split,pit;

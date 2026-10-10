@@ -178,6 +178,7 @@ static void F1RenderRace90(unsigned char *dst,const unsigned char *pal,const F1R
         else if(mode==3) F1Gap(label,row->leaderGap);
         else F1Gap(label,row->gap);
         tr90(dst,x+T90_W-4,vc90(y,T90_BOXH,F90_TOWER),label,F90_TOWER,col,dim);
+        if(row->finished) finishBadge(dst,x+T90_W+1,y);
     }
 }
 
@@ -238,6 +239,37 @@ static void F1RenderQualy90(unsigned char *dst,const unsigned char *pal,const F1
 static void F1RenderQualyCard90(unsigned char *dst,const unsigned char *pal,const F1QCard *c,int cockpit)
 {
     int di,i,x,y,col; char label[40],name[F1_NAME_LEN];
+    if(cockpit) {
+        palette90(pal);x=F1_CARD_COMPACT_X;y=F1_CARD_Y_COCKPIT;clipRight=x+F1_CARD_COMPACT_W;
+        di=driver(c->id);panel90(dst,x,y,F1_CARD_COMPACT_W,F1_CARD_COMPACT_H);
+        bar(dst,x,y,26,23,c90yellow);
+        if(c->pos) sprintf(label,"%d",c->pos);else strcpy(label,"-");
+        tc90(dst,x,y,26,23,label,F90_NAME,-1,r90box);
+        t90(dst,x+30,vc90(y,23,F90_NAME),di<0?"???":f1_drivers[di].abbr,F90_NAME,-1,NULL,0,48);
+        if(c->pit) strcpy(label,"IN PIT");
+        else if(c->outlap) strcpy(label,"OUT LAP");
+        else if(c->post) F1QTime(label,c->last,0);
+        else if(c->showGap) F1QDelta(label,c->gap);
+        else F1QLiveTime(label,c->running);
+        t90(dst,x+104,y+4,label,F90_NAME,c->showGap?sectorcol[c->gap<=0?1:2]:-1,NULL,0,90);
+        di=driver(c->leaderId);up90(name,di<0?"???":f1_drivers[di].last,sizeof(name));
+        t90(dst,x+199,y+2,name,F90_SMALL,-1,NULL,0,77);
+        if(c->pole) strcpy(label,"POLE");
+        else if(c->post && c->hasGap) F1QDelta(label,c->gap);
+        else F1QTime(label,c->leaderBest,0);
+        t90(dst,x+199,y+13,label,F90_SMALL,c->pole?c90yellow:-1,NULL,0,77);
+        for(i=0;i<F1_CARD_COMPACT_W;i++) {
+            dst[(y+24)*640+x+i]=grad90[i*31/(F1_CARD_COMPACT_W-1)];
+            dst[(y+25)*640+x+i]=grad90[i*31/(F1_CARD_COMPACT_W-1)];
+        }
+        clipRight=x+F1_CARD_COMPACT_W;
+        for(i=0;i<3;i++) {
+            sprintf(label,"S%d",i+1);
+            t90(dst,x+8+i*90+34,y+30,label,F90_HEAD,c->color[i]?sectorcol[c->color[i]]:-1,NULL,!c->color[i],0);
+            bar(dst,x+8+i*90,y+43,86,3,sectorcol[c->color[i]]);
+        }
+        return;
+    }
     palette90(pal); x=F1_CARD_X; y=cockpit?F1_CARD_Y_COCKPIT:F1_CARD_Y_TV; clipRight=x+F1_CARD_W;
     di=driver(c->id);
     panel90(dst,x,y,F1_CARD_W,F1_CARD_H);
