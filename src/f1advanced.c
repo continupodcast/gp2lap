@@ -93,13 +93,21 @@ static void reportCars(void)
     }
     fclose(f);
 }
+/* Evaluation telemetry is disabled in the release build. */
+void F1AccEvent(const char *event) { (void)event; }
 void F1AdvancedReport(void)
 {
     reportClock=0;reports=0;diagArmed=1;memset(microDiag,0,sizeof(microDiag));
     logstate("MICRO DIAGNOSTIC 0.22: PER-CAR CAPTURE ARMED FOR TWELVE MINUTES; COUNTS CUMULATIVE");
 }
+void F1AdvancedSuspend(void)
+{
+    F1AccEvent("SUSPEND_KEEP_RECORDS");
+    F1MicroSuspend(&micro);
+}
 void F1AdvancedReset(void)
 {
+    F1AccEvent("RESET");
     F1MicroReset(&micro);ready=0;trackBase=NULL;
     accepted=0;memset(rejected,0,sizeof(rejected));resetCount++;
 }
@@ -145,12 +153,21 @@ void F1AdvancedUpdate(void)
     int i,id,seg,sector,valid,pit,out,onRoad,chosen[41],rank[41],score;unsigned long clock,start,track,addr,base;
     double distance,fraction,position;GP2Car *c;F1QCard card;
     unsigned char seen[41];
-    if(!pCurTime || !pSesStartTime || !pTrackNr || !pSessionMode || !pCarStructs || !pNumCars || *pNumCars>28 || *pNumCars<1) {sampleStatus="POINTERS/COUNT";F1AdvancedReset();return;}
-    if(!pIsReplay || *pIsReplay) {sampleStatus="REPLAY/POINTER";F1AdvancedReset();return;}
+    if(!pCurTime || !pSesStartTime || !pTrackNr || !pSessionMode || !pCarStructs || !pNumCars || *pNumCars>28 || *pNumCars<1) {sampleStatus="SUSPEND_POINTERS_COUNT";F1AdvancedSuspend();return;}
+    if(!pIsReplay || *pIsReplay) {sampleStatus="SUSPEND_REPLAY_POINTER";F1AdvancedSuspend();return;}
     if(pPaused && *pPaused) {sampleStatus="PAUSED";return;}
     clock=*pCurTime;start=*pSesStartTime;track=*pTrackNr;
-    if(!ready || clock<oldClock || start!=oldSession || track!=oldTrack || mode!=*pSessionMode || trackBase!=pTrackSegs || !pNumTrackSegs || segments!=*pNumTrackSegs) {
+    if(!ready || clock<oldClock || start!=oldSession || track!=oldTrack || mode!=*pSessionMode) {
+        sampleStatus=!ready?"RESET_NOT_READY":clock<oldClock?"RESET_CLOCK_BACKWARD":
+            start!=oldSession?"RESET_SESSION_START":track!=oldTrack?"RESET_TRACK":
+            mode!=*pSessionMode?"RESET_MODE":trackBase!=pTrackSegs?"RESET_TRACK_POINTER":"RESET_SEGMENT_COUNT";
         F1AdvancedReset();if(!geometry()) {sampleStatus="GEOMETRY";return;}ready=1;
+    }
+    /* Re-entering the same session may rebuild GP2's track allocations.
+       Refresh geometry without discarding timing records. */
+    if(trackBase!=pTrackSegs || !pNumTrackSegs || segments!=*pNumTrackSegs) {
+        F1AdvancedSuspend();
+        if(!geometry()) {sampleStatus="GEOMETRY_UNAVAILABLE";return;}
     }
     sampleStatus=!f1_micro_enabled?"DISABLED":splitReady?"SAMPLING":"NO SPLIT MARKERS";
     oldClock=clock;oldSession=start;oldTrack=track;mode=*pSessionMode;

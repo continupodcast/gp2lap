@@ -12,9 +12,9 @@ assert.equal(run('roundtrip.controls.fuelEnabled'),true);
 assert.equal(run('roundtrip.controls.hideRetirement'),false);
 run('state.controls.hideRetirement=true;state.controls.hideCaption=true;roundtrip=parseCFG(cfg());validate(roundtrip)');
 assert.equal(run('roundtrip.controls.hideCaption'),false);
-assert.equal(run('roundtrip.controls.hideRetirement'),false);
-run('delete state.controls;validate(state)');assert.equal(run('state.controls.fuelEnabled'),false);
+assert.equal(run('roundtrip.controls.hideRetirement'),true);
+run('delete state.controls;validate(state)');assert.equal(run('state.controls.fuelEnabled'),run('INITIAL.controls.fuelEnabled'));
 for(const test of ['state.controls.fuelTargets=[0]','state.controls.fuelTargets=[41]','state.controls.fuelTargets=[10,10]','state.controls.fuelMilliseconds=99','state.controls.fuelMilliseconds=30001']){
  run('state.controls=structuredClone(INITIAL.controls)');run(test);assert.throws(()=>run('validate(state)'));
 }
-console.log('PASS: fuel controls CFG roundtrip, legacy projects default to disabled, malformed controls rejected.');
+console.log('PASS: fuel controls CFG roundtrip, legacy projects use packaged defaults, malformed controls rejected.');

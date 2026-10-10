@@ -1,3 +1,19 @@
+        EXTRN _fpF1PitCamBlocked:DWORD
+        EXTRN _f1PitCamAutoTarget:DWORD
+        EXTRN _f1PitCamRejectTarget:DWORD
+        EXTRN _f1PitCamApplyTarget:DWORD
+        PUBLIC _F1PitCamAutoCheck
+        PUBLIC _F1PitCamTVCheck
+        PUBLIC _F1PitCamRearCheck
+        PUBLIC _F1PitCamOtherCheck
+        PUBLIC _F1PitCamApplyCheck
+        EXTRN _fpF1PitCameraChangeOriginal:DWORD
+        EXTRN _fpF1PitCamBefore:DWORD
+        EXTRN _fpF1PitCamAfter:DWORD
+        PUBLIC _F1PitCameraChangeWrapped
+        EXTRN _f1NativeSuppressPixels:DWORD
+        EXTRN _fpF1NativePixelsOriginal:DWORD
+        PUBLIC _F1NativePixelsWrapped
 ;flagfield:
 ; b1 == MyDrawFunc_ installed
 ; b2 == Hook_AfterGp2Init reached
@@ -25,6 +41,12 @@
         EXTRN   _fpF1NativeAfter :dword
         EXTRN   _fpF1NativeOriginal :dword
         PUBLIC  _F1NativeCaptionWrapped
+        PUBLIC  _F1NativeVisibilityWrapped
+        PUBLIC  _F1NativeTextWrapped
+        EXTRN   _fpF1NativeVisibilityOriginal :dword
+        EXTRN   _fpF1NativeTextOriginal :dword
+        EXTRN   _fpF1NativeHiddenAt :dword
+        EXTRN   _fpF1NativeHiddenText :dword
         EXTRN   _fpF1SuppressNativeFastest :dword
         EXTRN   _F1FastestHook :dword
         EXTRN   _fpF1CockpitBefore :dword
@@ -521,6 +543,152 @@ L_NoLFB:
                 retn
 
 ;------------------------------------------------------------------------
+
+
+_F1PitCamAutoCheck proc near
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1PitCamBlocked
+                add     esp,4
+                test    eax,eax
+                jnz     F1PitCamAutoContinue
+                mov     eax,dword ptr ds:_f1PitCamAutoTarget
+                mov     dword ptr [esp+36],eax
+F1PitCamAutoContinue:
+                popad
+                popfd
+                retn
+_F1PitCamAutoCheck endp
+
+_F1PitCamTVCheck proc near
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1PitCamBlocked
+                add     esp,4
+                test    eax,eax
+                jz     F1PitCamTVContinue
+                mov     eax,dword ptr ds:_f1PitCamRejectTarget
+                mov     dword ptr [esp+36],eax
+F1PitCamTVContinue:
+                popad
+                popfd
+                retn
+_F1PitCamTVCheck endp
+
+_F1PitCamRearCheck proc near
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1PitCamBlocked
+                add     esp,4
+                test    eax,eax
+                jz     F1PitCamRearContinue
+                mov     eax,dword ptr ds:_f1PitCamRejectTarget
+                mov     dword ptr [esp+36],eax
+F1PitCamRearContinue:
+                popad
+                popfd
+                retn
+_F1PitCamRearCheck endp
+
+_F1PitCamOtherCheck proc near
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1PitCamBlocked
+                add     esp,4
+                test    eax,eax
+                jz     F1PitCamOtherContinue
+                mov     eax,dword ptr ds:_f1PitCamRejectTarget
+                mov     dword ptr [esp+36],eax
+F1PitCamOtherContinue:
+                popad
+                popfd
+                retn
+_F1PitCamOtherCheck endp
+
+_F1PitCamApplyCheck proc near
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1PitCamBlocked
+                add     esp,4
+                test    eax,eax
+                jz     F1PitCamApplyContinue
+                mov     eax,dword ptr ds:_f1PitCamApplyTarget
+                mov     dword ptr [esp+36],eax
+F1PitCamApplyContinue:
+                popad
+                popfd
+                retn
+_F1PitCamApplyCheck endp
+
+_F1PitCameraChangeWrapped proc near
+                pushfd
+                pushad
+                push    dword ptr [esp+36]
+                call    dword ptr ds:_fpF1PitCamBefore
+                add     esp,4
+                popad
+                popfd
+                call    dword ptr ds:_fpF1PitCameraChangeOriginal
+                pushfd
+                pushad
+                push    dword ptr [esp+36]
+                call    dword ptr ds:_fpF1PitCamAfter
+                add     esp,4
+                popad
+                popfd
+                retn
+_F1PitCameraChangeWrapped endp
+
+_F1NativeVisibilityWrapped proc near
+                pushfd
+                pushad
+                push    dword ptr [esp+36]
+                call    dword ptr ds:_fpF1NativeHiddenAt
+                add     esp,4
+                mov     dword ptr ds:_f1NativeSuppressPixels,eax
+                popad
+                popfd
+                call    dword ptr ds:_fpF1NativeVisibilityOriginal
+                pushfd
+                jz      F1VisibilityCompose
+                mov     dword ptr ds:_f1NativeSuppressPixels,0
+F1VisibilityCompose:
+                popfd
+                retn
+_F1NativeVisibilityWrapped endp
+
+_F1NativeTextWrapped proc near
+                pushfd
+                pushad
+                push    eax
+                call    dword ptr ds:_fpF1NativeHiddenText
+                add     esp,4
+                mov     dword ptr ds:_f1NativeSuppressPixels,eax
+                popad
+                popfd
+                call    dword ptr ds:_fpF1NativeTextOriginal
+                pushfd
+                mov     dword ptr ds:_f1NativeSuppressPixels,0
+                popfd
+                retn
+_F1NativeTextWrapped endp
+
+_F1NativePixelsWrapped proc near
+                pushfd
+                cmp     dword ptr ds:_f1NativeSuppressPixels,0
+                jz      F1PixelsVisible
+                mov     dword ptr ds:_f1NativeSuppressPixels,0
+                popfd
+                retn
+F1PixelsVisible:
+                popfd
+                jmp     dword ptr ds:_fpF1NativePixelsOriginal
+_F1NativePixelsWrapped endp
 
 _F1NativeCaptionWrapped proc near
                 pushfd

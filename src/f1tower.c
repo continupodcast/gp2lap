@@ -5,12 +5,14 @@
 #include "gp2lap.h"
 #include "gp2glob.h"
 #include "miscahf.h"
+#include "f1pitcamera.h"
 #include "pages.h"
 #include "f1render.h"
 #include "f1tower.h"
 #include "f1qualy.h"
 #include "f1race.h"
 #include "f1pits.h"
+#include "f1pitdisplay.h"
 #include "f1gapdiag.h"
 #include "f1loops.h"
 #include "f1config.h"
@@ -32,6 +34,8 @@ static F1FuelState fuelState;
 static unsigned long fuelSession, fuelTrack;
 static char fuelNotice[80];
 static unsigned long fuelNoticeAt;
+static char pitNotice[40];
+static unsigned long pitNoticeAt;
 int F1CockpitView;
 static int fullMap;
 static F1Row rows[26];
@@ -58,12 +62,16 @@ void F1DiagBoot(void)
 {
     FILE *f=fopen("F1HUD.LOG","w");
     GapDiagBoot();
-    if(f) { fputs("F1 HUD 0.35 - modern panels / map cycle and zoom - booted\n",f); fclose(f); }
+    if(f) { fputs("F1 HUD 0.56 - modern panels / map cycle and zoom - booted\n",f); fclose(f); }
     /* Diagnostic builds alone create F1GRID.LOG. */
 }
 void F1ControlInit(void)
 {
-    F1DiagLog("NATIVE CAPTIONS: ALL ORIGINAL EVENTS ENABLED; LEGACY HIDE FLAGS IGNORED");
+    F1ConfigEnsure();
+    if(f1_allow_external_pit_camera)
+        F1DiagLog(F1PitCameraProbeInit()?"PIT CAMERA: EXTERNAL VIEWS ENABLED FOR PLAYER AND AI":"PIT CAMERA: SIGNATURE FAILED; ORIGINAL RESTRICTIONS RETAINED");
+    else F1DiagLog("PIT CAMERA: ORIGINAL RESTRICTIONS (AllowExternalPitCamera=0)");
+    F1DiagLog(F1NativeFiltersInit()?"NATIVE CAPTIONS: CACHE-SAFE PIXEL FILTERS ACTIVE; NATIVE FASTEST TEXT ALWAYS HIDDEN":"NATIVE CAPTIONS: FILTER SIGNATURE FAILED; ORIGINAL MESSAGES RETAINED");
     F1DiagLog(F1NativeInit()?"NATIVE CAPTIONS: KH INTERFERENCE / COMPACT LAYOUT":"NATIVE CAPTIONS: UNKNOWN SIGNATURE - ORIGINAL STYLE");
 }
 void F1ControlCancel(void)
@@ -106,6 +114,7 @@ static void F1ControlUpdate(void)
 void F1LogKey(unsigned int scan)
 {
     char s[90];
+    F1PitCameraKey(scan);
     if((scan>=2 && scan<=11) || scan==15) {
         sprintf(s,"KEY scan=%u page_before=%lu",scan,(unsigned long)activepage);
         F1DiagLog(s);
@@ -156,9 +165,38 @@ static void F1TogglePart(unsigned long part)
     PAGESETON(part);diagCompose=0;diagBudget=20;diagLast[0]=0;
     F1DiagLog(part==PAGE_F1TOWER?"KEY 3: ON":part==PAGE_F1CARD?"KEY 4: ON":part==PAGE_F1DRIVER?"KEY 5: ON":"KEY 6: ON");F1DrawDiagnostic();
 }
-void F1Toggle(void) { F1TogglePart(PAGE_F1TOWER); }
+static int replayObserved,replayTowerAllowed;
+static void F1ReplayObserve(void)
+{
+    int replay=pIsReplay && *pIsReplay;
+    if(replay && !replayObserved) replayTowerAllowed=0;
+    replayObserved=replay;
+}
+static int F1TowerVisible(void)
+{
+    return (activepage&PAGE_F1TOWER) && (!replayObserved || replayTowerAllowed);
+}
+void F1Toggle(void)
+{
+    F1ReplayObserve();
+    if(replayObserved && !replayTowerAllowed) {
+        replayTowerAllowed=1;
+        if(!(activepage&PAGE_F1TOWER)) F1TogglePart(PAGE_F1TOWER);
+        else ReDrawAllPages(F1OnRedraw);
+        return;
+    }
+    F1TogglePart(PAGE_F1TOWER);
+}
 void F1ToggleCard(void)
 {
+    if(pSessionMode && (*pSessionMode&0x80)) {
+        F1TogglePart(PAGE_F1CARD);
+        strcpy(pitNotice,(activepage&PAGE_F1CARD)?"Pit signal ON":"Pit signal OFF");
+        pitNoticeAt=pCurTime?*pCurTime:0;F1DiagLog(pitNotice);return;
+    }
+    /* Qualifying/practice cards share the upper-centre display slot. */
+    if(!(activepage&PAGE_F1CARD) && pSessionMode && !(*pSessionMode&0x80))
+        PAGESETOFF(PAGE_F1DRIVER);
     if((activepage&PAGE_F1CARD) && !F1MicroMode && f1_micro_enabled) {
         F1MicroMode=1;F1AdvancedReport();F1DiagLog("KEY 4: MICROSECTORS");return;
     }
@@ -177,6 +215,9 @@ void F1MapZoom(void) { if((activepage&PAGE_F1MAP) && fullMap) F1CycleMapZoom(); 
 static int driverDiff;
 void F1ToggleDriver(void)
 {
+    if(!(activepage&PAGE_F1DRIVER) && pSessionMode && !(*pSessionMode&0x80)) {
+        PAGESETOFF(PAGE_F1CARD);F1MicroMode=0;
+    }
     if(!F1CockpitView && pSessionMode && (*pSessionMode&0x80)
        && (activepage&PAGE_F1DRIVER) && !driverDiff) {
         driverDiff=1;F1DiagLog("KEY 5: DIFFERENCE");return;
@@ -198,6 +239,7 @@ void F1Reset(void)
 {
     /* Sampling resets must not erase the session grid or cancel its capture. */
     FIReset();
+    F1PitDisplayReset();
     trackLength=0; previousLineDistance=0; previousLap=-1; previousLeader=-1;
     count=0; haveLine=0; validClock=0;
     fastInit=0; fastShow=0;
@@ -213,6 +255,8 @@ void F1Update(void)
 {
     int i,j,id,aheadId,focus,n,leaderId,fastestId; long dist,delta; unsigned long clock,start,track,time,best;
     GP2Car *c,*tmp; double microPosition;
+    F1PitCameraSample();
+    F1ReplayObserve();
     diagFrames++;
     /* F1GRID diagnostic disabled in the release build. */
     F1ControlUpdate();
@@ -227,6 +271,12 @@ void F1Update(void)
         F1PitsReset();F1Reset();
     }
     if(pIsReplay && *pIsReplay){if(count && fiCars[rows[0].id].seen)GapDiagTrace(clock,"REPLAY_RESET");FIReset();GapDiagFlush(clock);return;}
+    if(pNumCars && *pNumCars>=1 && *pNumCars<=26) {
+        for(i=0;i<*pNumCars;i++) {
+            c=&pCarStructs[i];id=c->id&63;
+            F1PitDisplayTick(id,(c->flags_16A&8)!=0 && !((c->flags_90&32) && !(c->flags_5E&1)),clock);
+        }
+    }
     lastClock=clock; sessionStart=start; trackSlot=track;
     if(validClock && clock-lastTick<100) return;
     if(validClock && clock-lastTick>500){GapDiagTrace(clock,"GLOBAL_SAMPLE_TIMEOUT previous_tick=%lu dt=%lu",lastTick,clock-lastTick);FIReset();}
@@ -283,6 +333,7 @@ void F1Update(void)
         rows[i].gap=-1;
         rows[i].leaderGap=i?-1:0;rows[i].lapsBehind=0;
         rows[i].fastest=id==fastestId;
+        rows[i].finished=(c->flags_5E&1)!=0; /* Native per-car race-over bit. */
         rows[i].positionChange=FIPosition(id,i+1,c->lapNr,clock,f1_position_time);
         if(i && trackLength>0 && !rows[i].out) {
             delta=(long)ordered[0]->field_9E-(long)c->field_9E;
@@ -334,13 +385,16 @@ void F1Compose(unsigned char *dst)
     int start=0,n=count,focus=0,i,pos=0,qn=count,isQualy,slot90;
     const F1QRow *qr;
     F1Row visible[26];
+    F1ReplayObserve();
     if(activepage&PAGE_F1HUD) diagCompose++;
     if(!pUseSVGA || !*pUseSVGA) return;
     if(fuelNotice[0] && (!pCurTime || *pCurTime<fuelNoticeAt || *pCurTime-fuelNoticeAt>=3000)) fuelNotice[0]=0;
-    if(!(activepage&PAGE_F1HUD) && !fuelNotice[0]) return;
+    if(pitNotice[0] && (!pCurTime || *pCurTime<pitNoticeAt || *pCurTime-pitNoticeAt>=2500))pitNotice[0]=0;
+    if(!(activepage&PAGE_F1HUD) && !fuelNotice[0] && !pitNotice[0]) return;
     pal=IDACodeReftoDataRef(0x7f624); /* same palette reference as GP2Lap screenshot code */
     if(!pal) return;
     if(fuelNotice[0]) F1RenderNotice(dst,pal,fuelNotice);
+    if(pitNotice[0]) F1RenderNotice(dst,pal,pitNotice);
     if(!(activepage&PAGE_F1HUD)) return;
     if(F1CockpitView && ppCockpitCS && *ppCockpitCS) focus=(*ppCockpitCS)->id&0x3f;
     else if(ppSelectedCS && *ppSelectedCS) focus=(*ppSelectedCS)->id&0x3f;
@@ -361,9 +415,17 @@ void F1Compose(unsigned char *dst)
         F1RenderDriverAtXY(dst,pal,focus,pos,F1DriverLeft(F1CockpitView),F1DriverTop(F1CockpitView,isQualy,qn));
     }
     if(pSessionMode && !(*pSessionMode&0x80)) {
-        F1QualyCompose(dst,pal,focus,activepage&PAGE_F1TOWER,activepage&PAGE_F1CARD,F1CockpitView);return;
+        F1QualyCompose(dst,pal,focus,F1TowerVisible(),activepage&PAGE_F1CARD,F1CockpitView);return;
     }
-    if(!(activepage&PAGE_F1TOWER) || !count) return;
+    if(!F1CockpitView && (activepage&PAGE_F1CARD) && count && !(pIsReplay && *pIsReplay) && pCurTime) {
+        F1PitDisplay cards[26];int pc=0;
+        for(i=0;i<count;i++) if(pitClocks[rows[i].id].active) {
+            cards[pc].id=rows[i].id;cards[pc].position=rows[i].pos;
+            cards[pc].elapsed=pitClocks[rows[i].id].elapsed;pc++;
+        }
+        F1RenderPitDisplays(dst,pal,cards,pc);
+    }
+    if(!F1TowerVisible() || !count) return;
     if(F1CockpitView) {
         if(ppCockpitCS && *ppCockpitCS) focus=(*ppCockpitCS)->id&0x3f;
         else if(ppSelectedCS && *ppSelectedCS) focus=(*ppSelectedCS)->id&0x3f;
@@ -383,8 +445,7 @@ extern unsigned long SupressFastestLap;
 unsigned long F1FastestHook=1;
 int F1SuppressNativeFastest(void)
 {
-    return SupressFastestLap && pUseSVGA && *pUseSVGA &&
-        (activepage&PAGE_F1TOWER) && pSessionMode && (*pSessionMode&0x80);
+    return 1; /* Keep HUD designs; never show the native fastest text. */
 }
 int (*fpF1SuppressNativeFastest)(void)=F1SuppressNativeFastest;
 void (*fpF1Compose)(unsigned char *)=F1Compose;

@@ -1,5 +1,11 @@
 #include <string.h>
 #include "f1micro.h"
+#include "f1splitcolor.h"
+void F1MicroSuspend(F1MicroState *s)
+{
+    int id;
+    for(id=1;id<=40;id++) { s->cars[id].seen=0;s->cars[id].haveCross=0; }
+}
 void F1MicroReset(F1MicroState *s) { memset(s,0,sizeof(*s)); }
 void F1MicroSample(F1MicroState *s,int id,int lap,double position,unsigned long clock,int valid)
 {
@@ -35,8 +41,7 @@ void F1MicroSample(F1MicroState *s,int id,int lap,double position,unsigned long 
                             if(s->cars[other].colors[index]==3)
                                 s->cars[other].colors[index]=1;
                     }
-                    c->colors[index]=!s->best[index] || elapsed<=s->best[index]?3:
-                        !c->personal[index] || elapsed<c->personal[index]?1:2;
+                    c->colors[index]=(unsigned char)F1SplitColor(elapsed,c->personal[index],s->best[index]);
                     if(!s->best[index] || elapsed<s->best[index]) s->best[index]=elapsed;
                     if(!c->personal[index] || elapsed<c->personal[index]) c->personal[index]=elapsed;
                 }

@@ -28,3 +28,12 @@ The suppression-hook branches preserve registers, flags and stack in CPU
 emulation. In-game RetroArch validation of v0.35 remains pending.
 
 Editor import fix: player flags 0x80 and 0x40 are separated from CarId using mask 0x3F. GP2LAP.EXE is unchanged.
+
+
+V0.35 COMPACT SECTOR CARD UPDATE
+TV: sector/microsector card is bottom-centre, 210x84 native pixels.
+Onboard: upper-centre two-row card, 280x50 native pixels, with abbreviation,
+logo, main time, reference and sector/microsector bars.
+Qualifying/practice keys 4 and 5 replace each other.
+Open Watcom build and host rendering/toggle tests pass. Gameplay validation
+in RetroArch remains required. CFG and editor are preserved from the supplied ZIP.

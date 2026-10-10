@@ -1,5 +1,7 @@
 #ifndef F1RENDER_H
 #define F1RENDER_H
+typedef struct { int id,position; unsigned long elapsed; } F1PitDisplay;
+void F1RenderPitDisplays(unsigned char *,const unsigned char *,const F1PitDisplay *,int);
 #define F1_MAX_ROWS 26
 #define F1_PANEL_X 8
 #define F1_PANEL_Y 8
@@ -7,7 +9,7 @@
 #define F1_HEADER_H 34
 #define F1_ROW_H 13
 /* -1 gap means unavailable. Palette entries are VGA 6-bit RGB. */
-typedef struct { int id, pos, lap, out, pit, focused; long gap; int gain, stops; long leaderGap; int lapsBehind, fastest, positionChange; } F1Row;
+typedef struct { int id, pos, lap, out, pit, focused; long gap; int gain, stops; long leaderGap; int lapsBehind, fastest, positionChange, finished; } F1Row;
 int F1Window(const F1Row *rows, int count, int focusId, int *start);
 void F1Gap(char *label, long milliseconds);
 void F1Render(unsigned char *screen, const unsigned char *palette,

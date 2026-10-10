@@ -77,7 +77,7 @@ void F1QualyCompose(unsigned char *dst,const unsigned char *pal,int focus,int ta
     if(!pSessionMode || (*pSessionMode&0x80) || !pCurTime) return;
     rows=F1QRows(&n);
     if(table) F1RenderQualy(dst,pal,rows,n,remaining,!(*pSessionMode&0x40),(*pCurTime%15000)<10000,cockpit,focus);
-    if(card && !cockpit && F1QGetCard(focus,*pCurTime,&detail)) {
-        F1RenderQualyCard(dst,pal,&detail,0);F1AdvancedCard(dst,pal,focus,0);
+    if(card && F1QGetCard(focus,*pCurTime,&detail)) {
+        F1RenderQualyCard(dst,pal,&detail,cockpit);F1AdvancedCard(dst,pal,focus,cockpit);
     }
 }
