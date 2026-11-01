@@ -38,7 +38,7 @@ static void PitCamTrace(const char *event,unsigned long caller,int force)
         ppCockpitCS && *ppCockpitCS?(unsigned)((*ppCockpitCS)->id&63):0,(unsigned)PitCamBlocked(c));
     if(!force && !strcmp(state,pitCamPrevious))return;
     strcpy(pitCamPrevious,state);
-    f=fopen("F1PITCAM.LOG","a");if(!f)return;
+    f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;if(!f)return;
     fprintf(f,"%s clock=%lu caller=%05lx %s\n",event,clock,caller,state);
     fclose(f);pitCamRecords++;
 }
@@ -72,7 +72,7 @@ static int F1PitCameraProbeInit(void)
     void (__cdecl *wrappers[5])(void)={F1PitCamAutoCheck,F1PitCamTVCheck,F1PitCamRearCheck,F1PitCamOtherCheck,F1PitCamApplyCheck};
     unsigned int i;unsigned char *p,*original=IDAtoFlat(0x36f3f);FILE *f;
     pitCamReady=0;pitCamRecords=0;pitCamPrevious[0]=0;
-    f=F1_PIT_CAMERA_TRACE?fopen("F1PITCAM.LOG","w"):NULL;if(f){fputs("PIT CAMERA P4: conditional bit20 camera checks; pit=flagsAD:04 for player AND AI, no retirement; max 5000 records\n",f);fclose(f);}
+    f=F1_PIT_CAMERA_TRACE?((FILE *)0) /* obsolete diagnostic disabled in T4 */:NULL;if(f){fputs("PIT CAMERA P4: conditional bit20 camera checks; pit=flagsAD:04 for player AND AI, no retirement; max 5000 records\n",f);fclose(f);}
     if(original[0]!=0x60)return 0;
     for(i=0;i<4;i++){p=IDAtoFlat(calls[i]);if(p[0]!=0xe8 || p+5+*(long *)(p+1)!=original)return 0;}
     if(IDAtoFlat(0x36f40)[0]!=0xa0 || IDAtoFlat(0x36f61)[0]!=0xf6 || IDAtoFlat(0x380fb)[0]!=0xa1 || IDAtoFlat(0x36c3d)[0]!=0xf6 || IDAtoFlat(0x36c0e)[0]!=0xf6)return 0;

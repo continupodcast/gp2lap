@@ -21,6 +21,7 @@ unsigned char (*ImageTranspTab)[3][256] = NULL;
 unsigned char videopal[3*256];
 
 #include "logo.inc"
+#include "f1gridprobe.inc"
 
 //--------------------------------------------------------------
 

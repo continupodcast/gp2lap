@@ -8,6 +8,7 @@
 void (__interrupt __far *OldInt9)(); // fuer originalen int9 haendler
 
 
+extern volatile unsigned long F1StrategyMenuActive;
 static unsigned long MyIntActive = 0;    // flag, ob mein handler aktiv
 static KeyEvent actkbd;
 
@@ -17,7 +18,7 @@ static KeyEvent actkbd;
 
 void __interrupt __far MyInt9()
 {
-  if ((inp(0x64) & 0x01) && InCockpitNow) {  // ueberhaupt taste vorhanden *und* im Cockpit?
+  if ((inp(0x64) & 0x01) && (InCockpitNow || F1StrategyMenuActive)) {  // ueberhaupt taste vorhanden *und* im Cockpit?
 
   if (CanEnterCriticalSection(&MyIntActive)) {
 

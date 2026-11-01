@@ -146,14 +146,14 @@ static void header90(unsigned char *dst,int x,int y,int w,const char *title,cons
 static void F1RenderRace90(unsigned char *dst,const unsigned char *pal,const F1Row *rows,int count,int lap,int total,int mode)
 {
     int i,j,x=T90_X,y,di,box,col,dim,bx; const F1Row *row; char label[40],name[F1_NAME_LEN];
-    palette90(pal); clipRight=x+T90_W;
-    background(dst,x,T90_Y,T90_W,T90_HEAD+count*T90_ROW+3);
+    palette90(pal); clipRight=x+T90_W+F1_TYRE_EXTRA;
+    background(dst,x,T90_Y,T90_W+F1_TYRE_EXTRA,T90_HEAD+count*T90_ROW+3);
     if(total>0) sprintf(label,"%d / %d",lap,total); else sprintf(label,"%d",lap);
-    header90(dst,x,T90_Y,T90_W,mode==1?"POSITIONS +/-":mode==2?"PIT STOPS":mode==3?"GAP TO LEADER":"RACE POSITIONS",
+    header90(dst,x,T90_Y,T90_W+F1_TYRE_EXTRA,mode==4?"TYRE AGE":mode==1?"POSITIONS +/-":mode==2?"PIT STOPS":mode==3?"GAP TO LEADER":"RACE POSITIONS",
              "CURRENT LAP",label,-1);
     for(i=0;i<count;i++) {
         row=&rows[i]; y=T90_Y+T90_HEAD+i*T90_ROW; di=driver(row->id); dim=row->out;
-        if(row->focused) liftrow90(dst,x,y-1,T90_W,T90_ROW);
+        if(row->focused) liftrow90(dst,x,y-1,T90_W+F1_TYRE_EXTRA,T90_ROW);
         bx=x+4;
         box=row->out?c90dimbox:row->positionChange>0?c90green:row->positionChange<0?c90red:c90yellow;
         bar(dst,bx,y,T90_BOXW,T90_BOXH,box);
@@ -171,6 +171,7 @@ static void F1RenderRace90(unsigned char *dst,const unsigned char *pal,const F1R
             if(row->gain==F1_GAIN_UNKNOWN || !row->gain) { strcpy(label,"-"); col=-1; }
             else { sprintf(label,"%+d",row->gain); col=row->gain>0?c90green:c90red; }
         } else if(mode==2) { sprintf(label,"%d",row->stops); col=-1; }
+        else if(mode==4){if(row->tyreLaps<0)strcpy(label,"-");else sprintf(label,"%d",row->tyreLaps);col=-1;}
         else if(row->out) { strcpy(label,"OUT"); col=-1; }
         else if(row->pit) { strcpy(label,"IN PIT"); col=c90cyan; }
         else if(row->pos==1) strcpy(label,mode==3?"Leader":"Gap");
@@ -178,7 +179,12 @@ static void F1RenderRace90(unsigned char *dst,const unsigned char *pal,const F1R
         else if(mode==3) F1Gap(label,row->leaderGap);
         else F1Gap(label,row->gap);
         tr90(dst,x+T90_W-4,vc90(y,T90_BOXH,F90_TOWER),label,F90_TOWER,col,dim);
-        if(row->finished) finishBadge(dst,x+T90_W+1,y);
+        if(PerCarTyreCompounds){
+        label[0]=row->compound>=0 && row->compound<4?"HMSS"[row->compound]:'?';label[1]=0;
+        t90(dst,x+T90_W+4,vc90(y,T90_BOXH,F90_SMALL),label,F90_SMALL,row->compound>=0 && row->compound<4?tyrecol[row->compound]:-1,NULL,dim,8);
+        t90(dst,x+T90_W+5,vc90(y,T90_BOXH,F90_SMALL),label,F90_SMALL,row->compound>=0 && row->compound<4?tyrecol[row->compound]:-1,NULL,dim,8);
+        }
+        if(row->finished) finishBadge(dst,x+T90_W+16,y);
     }
 }
 
@@ -211,27 +217,31 @@ static void F1RenderQualy90(unsigned char *dst,const unsigned char *pal,const F1
     leader=rows[0].best;
     n=compact?F1QWindow(rows,count,focus,&start):count;
     if(!n) return;
-    palette90(pal); clipRight=x+T90_QW;
-    background(dst,x,T90_Y,T90_QW,T90_HEAD+n*T90_ROW+3);
+    palette90(pal); clipRight=x+T90_QW+F1_TYRE_EXTRA;
+    background(dst,x,T90_Y,T90_QW+F1_TYRE_EXTRA,T90_HEAD+n*T90_ROW+3);
     if(remaining>=0) sprintf(label,"%ld:%02ld",remaining/60000,(remaining/1000)%60); else label[0]=0;
     t90(dst,x+5,T90_Y+4,practice?"PRACTICE":"QUALIFYING",F90_HEAD,-1,NULL,0,T90_QW-60);
     if(label[0]) tr90(dst,x+T90_QW-5,T90_Y+4,label,F90_HEAD,remaining<120000?c90red:-1,0);
-    tr90(dst,x+T90_QW-5,T90_Y+14,"BEST / GAP",F90_SMALL,-1,0);
+    tr90(dst,x+T90_QW-5,T90_Y+14,(F1QCombinedMode?"COMBINED":"BEST / GAP"),F90_SMALL,-1,0);
     for(i=0;i<n;i++) {
         r=&rows[start+i]; y=T90_Y+T90_HEAD+i*T90_ROW; di=driver(r->id);
-        if(compact && r->id==focus) liftrow90(dst,x,y-1,T90_QW,T90_ROW);
+        if(compact && r->id==focus) liftrow90(dst,x,y-1,T90_QW+F1_TYRE_EXTRA,T90_ROW);
         bar(dst,x+4,y,T90_BOXW,T90_BOXH,r->best?c90yellow:c90dimbox);
         if(r->best) sprintf(label,"%d",r->pos); else strcpy(label,"-");
         tc90(dst,x+4,y,T90_BOXW,T90_BOXH,label,F90_TOWER,-1,r90box);
         up90(name,di<0?"???":f1_drivers[di].last,sizeof(name));
-        t90(dst,x+22,vc90(y,T90_BOXH,F90_TOWER),name,F90_TOWER,-1,NULL,!r->best,T90_QW-22-46);
+        t90(dst,x+22,vc90(y,T90_BOXH,F90_TOWER),name,F90_TOWER,r->improved?c90lime:-1,NULL,!r->best,T90_QW-22-46);
         col=-1;
         if(!r->best) strcpy(label,"NO TIME");
-        else if(compact && r->id==focus) F1QTime(label,r->best,0);
         else if(gaps && r->pos>1 && leader) { F1QDelta(label,r->best-leader); col=c90lime; }
         else F1QTime(label,r->best,0);
-        tr90(dst,x+T90_QW-4,vc90(y,T90_BOXH,F90_TOWER),label,F90_TOWER,col,!r->best);
-        if(r->pit) badge(dst,x+T90_QW+1,y,0);
+        tr90(dst,x+T90_QW-4,vc90(y,T90_BOXH,r->best?F90_TOWER:F90_SMALL),label,r->best?F90_TOWER:F90_SMALL,r->improved?c90lime:col,!r->best);
+        if(PerCarTyreCompounds){
+        label[0]=r->compound>=0 && r->compound<4?"HMSS"[r->compound]:'?';label[1]=0;
+        t90(dst,x+T90_QW+4,vc90(y,T90_BOXH,F90_SMALL),label,F90_SMALL,r->compound>=0 && r->compound<4?tyrecol[r->compound]:-1,NULL,0,8);
+        t90(dst,x+T90_QW+5,vc90(y,T90_BOXH,F90_SMALL),label,F90_SMALL,r->compound>=0 && r->compound<4?tyrecol[r->compound]:-1,NULL,0,8);
+        }
+        if(r->pit) badge(dst,x+T90_QW+16,y,0);
     }
 }
 

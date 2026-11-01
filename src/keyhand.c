@@ -15,6 +15,8 @@
 #include "keyhand.h"
 
 
+extern int F1PlayerInlinePitKey(unsigned int scan,int control);
+extern void F1CameraTestKey(unsigned int scan,int control);
 static KeyEvent actkbd;
 static unsigned long ii, hcnt = 0;
 static long i;
@@ -31,6 +33,8 @@ void KeyMainHandler()   // called for every frame or so...
 
       // LogLine("KeyEvent available\n");
 
+      if(F1PlayerInlinePitKey(actkbd.scancode,actkbd.lctrlactive))return;
+      F1CameraTestKey(actkbd.scancode,actkbd.lctrlactive);
       F1LogKey(actkbd.scancode);
       F1Tab(actkbd.scancode);
       F1ControlKey(actkbd.scancode);

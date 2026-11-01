@@ -1,3 +1,23 @@
+        EXTRN _camPitch:WORD
+        EXTRN _camOrbitYaw:WORD
+        EXTRN _camOffsetX:WORD
+        EXTRN _camOffsetY:WORD
+        EXTRN _camOffsetZ:WORD
+        EXTRN _camTestEnabled:DWORD
+        EXTRN _camTestExpected:DWORD
+        EXTRN _camTestApplied:DWORD
+        EXTRN _camTestCopy:DWORD
+        EXTRN _camReadPtr:DWORD
+        EXTRN _camReadCount:DWORD
+        EXTRN _camReadWords:DWORD
+        EXTRN _camReadOriginal:DWORD
+        PUBLIC _F1CamReadWrapped
+        EXTRN _fpF1GridControlOriginal:DWORD
+        EXTRN _fpF1GridControlAfter:DWORD
+        PUBLIC _F1GridControlWrapped
+        EXTRN _fpF1GridProbeOriginal:DWORD
+        EXTRN _fpF1GridProbeAfter:DWORD
+        PUBLIC _F1GridProbeWrapped
         EXTRN _fpF1PitCamBlocked:DWORD
         EXTRN _f1PitCamAutoTarget:DWORD
         EXTRN _f1PitCamRejectTarget:DWORD
@@ -13,6 +33,23 @@
         PUBLIC _F1PitCameraChangeWrapped
         EXTRN _f1NativeSuppressPixels:DWORD
         EXTRN _fpF1NativePixelsOriginal:DWORD
+        PUBLIC _F1InlinePitNavigationWrapped
+        EXTRN _fpF1InlinePitNavigationOriginal :dword
+        EXTRN _fpF1InlinePitNavigationAfter :dword
+        PUBLIC _F1InlinePitCursorWrapped
+        PUBLIC _F1InlinePitRunCursor
+        EXTRN _fpF1InlinePitCursorOriginal :dword
+        EXTRN _fpF1InlinePitCursor :dword
+        PUBLIC _F1InlinePitControlWrapped
+        PUBLIC _F1InlinePitRunControl
+        PUBLIC _F1InlinePitRunPoll
+        PUBLIC _F1InlinePitRunDraw
+        EXTRN _fpF1InlinePitControlOriginal :dword
+        EXTRN _fpF1InlinePitPollOriginal :dword
+        EXTRN _fpF1InlinePitControl :dword
+        PUBLIC _F1InlinePitWrapped
+        EXTRN _fpF1InlinePitOriginal :dword
+        EXTRN _fpF1InlinePitAfter :dword
         PUBLIC _F1NativePixelsWrapped
 ;flagfield:
 ; b1 == MyDrawFunc_ installed
@@ -452,6 +489,7 @@ MyDrawFunc_     proc    near
                 ;---- Test 8/98 ---------------
                 ;---- Übergabe: ESI schon auf scr gesetzt -----
                 ;---- Flags noch von 'test _GP2_UpdateCockpit,0FFh' gesetzt
+                mov     dword ptr ds:_F1CockpitView,1 ; always before keyboard, MOV preserves flags
                 jnz     IgnoreNow      ; no patch for cockpitupdate
                 cmp     dword ptr ds:_activepage,0
                 je      IgnoreNow      ; no patching for page '0'
@@ -625,6 +663,40 @@ F1PitCamApplyContinue:
                 retn
 _F1PitCamApplyCheck endp
 
+_F1GridControlWrapped proc near
+                lea     esp,[esp-8]
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1GridControlOriginal
+                add     esp,4
+                mov     [esp+36],eax
+                mov     edx,[esp+4]
+                mov     [esp+40],edx
+                popad
+                popfd
+                call    dword ptr [esp]
+                pushfd
+                pushad
+                push    dword ptr [esp+40]
+                call    dword ptr ds:_fpF1GridControlAfter
+                add     esp,4
+                popad
+                popfd
+                lea     esp,[esp+8]
+                retn
+_F1GridControlWrapped endp
+
+_F1GridProbeWrapped proc near
+                call    dword ptr ds:_fpF1GridProbeOriginal
+                pushfd
+                pushad
+                call    dword ptr ds:_fpF1GridProbeAfter
+                popad
+                popfd
+                retn
+_F1GridProbeWrapped endp
+
 _F1PitCameraChangeWrapped proc near
                 pushfd
                 pushad
@@ -677,6 +749,91 @@ _F1NativeTextWrapped proc near
                 popfd
                 retn
 _F1NativeTextWrapped endp
+
+_F1InlinePitNavigationWrapped proc near
+                call    dword ptr ds:_fpF1InlinePitNavigationOriginal
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1InlinePitNavigationAfter
+                add     esp,4
+                popad
+                popfd
+                retn
+_F1InlinePitNavigationWrapped endp
+
+_F1InlinePitRunCursor proc near
+                pushfd
+                pushad
+                mov     esi,[esp+40]
+                call    dword ptr ds:_fpF1InlinePitCursorOriginal
+                popad
+                popfd
+                retn
+_F1InlinePitRunCursor endp
+
+_F1InlinePitCursorWrapped proc near
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1InlinePitCursor
+                add     esp,4
+                popad
+                popfd
+                retn
+_F1InlinePitCursorWrapped endp
+
+_F1InlinePitRunControl proc near
+                pushfd
+                pushad
+                mov     esi,[esp+40]
+                call    dword ptr ds:_fpF1InlinePitControlOriginal
+                popad
+                popfd
+                retn
+_F1InlinePitRunControl endp
+
+_F1InlinePitRunPoll proc near
+                pushfd
+                pushad
+                mov     esi,[esp+40]
+                call    dword ptr ds:_fpF1InlinePitPollOriginal
+                popad
+                popfd
+                retn
+_F1InlinePitRunPoll endp
+
+_F1InlinePitRunDraw proc near
+                pushfd
+                pushad
+                mov     esi,[esp+40]
+                call    dword ptr ds:_fpF1InlinePitOriginal
+                popad
+                popfd
+                retn
+_F1InlinePitRunDraw endp
+
+_F1InlinePitControlWrapped proc near
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1InlinePitControl
+                add     esp,4
+                popad
+                popfd
+                retn
+_F1InlinePitControlWrapped endp
+
+_F1InlinePitWrapped proc near
+                pushfd
+                pushad
+                push    esi
+                call    dword ptr ds:_fpF1InlinePitAfter
+                add     esp,4
+                popad
+                popfd
+                retn
+_F1InlinePitWrapped endp
 
 _F1NativePixelsWrapped proc near
                 pushfd
@@ -771,6 +928,7 @@ Hook_AfterGp2Init endp
 
 ;----- Frank 10/98 ---- Visual Output to CamView SVGA too ------
 DrawSvgaCamView proc    near
+                mov     dword ptr ds:_F1CockpitView,0 ; independent of HUD visibility
                 ;---- Übergabe: ESI schon auf scr gesetzt -----
                 cmp     dword ptr ds:_activepage,0
                 je      NoDSCVPatch    ; no patching for page '0'
@@ -792,6 +950,7 @@ DrawSvgaCamView endp
 
 ;----- Frank 09/99 ---- Visual Output to CamView VGA too -------
 DrawVgaCamView  proc    near
+                mov     dword ptr ds:_F1CockpitView,0 ; independent of HUD visibility
                 ;---- Übergabe: ESI schon auf scr gesetzt -----
                 cmp     dword ptr ds:_activepage,0
                 je      NoDVCVPatch    ; no patching for page '0'
@@ -901,6 +1060,13 @@ Hook_FES        proc    near
                 ;mov     ebx,ds:d_SesStartTime
                 ;sub     eax,[ebx]
                 mov     [esi+54h],eax         ; timeLapStart := currTime
+                ; T12.1: pit-line time and the native lap number are ready.
+                pushfd
+                pushad
+                mov     [ds:_pCurrentCS],esi
+                call    dword ptr ds:_fpTyrePitLapCode
+                popad
+                popfd
                 mov     eax,0        ; split0 (line)
                 call    dword ptr ds:_fpAHFCrossingSplit
                 jmp     StillOnThatSeg
@@ -1257,3 +1423,58 @@ ahfcode_hooks:
 ;!!!!!!!!
 ;WARNING: there's a second table in lammcall.asm Check first for interferings...
 ;!!!!!!!!
+
+_F1CamReadWrapped proc near
+                pushfd
+                pushad
+                mov dword ptr ds:_camReadPtr,ebx
+                inc dword ptr ds:_camReadCount
+                mov eax,[ebx]
+                mov dword ptr ds:_camReadWords,eax
+                mov eax,[ebx+4]
+                mov dword ptr ds:_camReadWords+4,eax
+                mov eax,[ebx+8]
+                mov dword ptr ds:_camReadWords+8,eax
+                mov eax,[ebx+12]
+                mov dword ptr ds:_camReadWords+12,eax
+                cmp dword ptr ds:_camTestEnabled,0
+                je CamC4NoOffset
+                cmp ebx,dword ptr ds:_camTestExpected
+                jne CamC4NoOffset
+                mov eax,[ebx]
+                mov dword ptr ds:_camTestCopy,eax
+                mov eax,[ebx+4]
+                mov dword ptr ds:_camTestCopy+4,eax
+                mov eax,[ebx+8]
+                mov dword ptr ds:_camTestCopy+8,eax
+                mov eax,[ebx+12]
+                mov dword ptr ds:_camTestCopy+12,eax
+                mov ax,word ptr ds:_camOffsetX
+                mov word ptr ds:_camTestCopy,ax
+                mov ax,word ptr ds:_camOffsetZ
+                mov word ptr ds:_camTestCopy+2,ax
+                mov ax,word ptr ds:_camOffsetY
+                mov word ptr ds:_camTestCopy+4,ax
+                mov ax,word ptr ds:_camOrbitYaw
+                mov word ptr ds:_camTestCopy+6,ax
+                mov ax,word ptr ds:_camPitch
+                mov word ptr ds:_camTestCopy+8,ax
+                mov word ptr ds:_camTestCopy+10,0
+                mov dword ptr ds:_camTestCopy+12,0ffffffffh
+                inc dword ptr ds:_camTestApplied
+CamC4NoOffset:
+                popad
+                popfd
+                push ebx
+                pushfd
+                cmp dword ptr ds:_camTestEnabled,0
+                je CamC4UseOriginal
+                cmp ebx,dword ptr ds:_camTestExpected
+                jne CamC4UseOriginal
+                mov ebx,offset _camTestCopy
+CamC4UseOriginal:
+                popfd
+                call dword ptr ds:_camReadOriginal
+                pop ebx
+                ret
+_F1CamReadWrapped endp

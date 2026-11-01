@@ -8,7 +8,7 @@ static unsigned char gridIds[26];
 static int gridReady;
 static void F1GridBoot(void)
 {
-    FILE *f=fopen("F1GRID.LOG","w");
+    FILE *f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;
     gridReady=0;
     if(f) {
         fputs("F1 GRID DIAG 0.21-D1\nRead-only; active/order reads capped at 26; best-lap table has 40 CarId entries.\nSnapshots on session/count/slot changes and every 10 simulation seconds.\n",f);
@@ -36,7 +36,7 @@ static void F1GridUpdate(void)
     for(i=0;i<limit;i++)ids[i]=pCarStructs[i].id;
     if(memcmp(ids,gridIds,sizeof(ids)))changed=1;
     if(!changed && now-gridDump<10000)return;
-    f=fopen("F1GRID.LOG","a");if(!f)return;
+    f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;if(!f)return;
     fprintf(f,"\nSNAP clock=%lu start=%lu track=%lu mode=%02X race=%u count=%u started=%lu replay=%u accelerated=%u\n",
         now,start,track,mode,(mode&0x80)?1:0,n,started,
         pIsReplay?(unsigned)*pIsReplay:0,pIsAccTime?(unsigned)*pIsAccTime:0);

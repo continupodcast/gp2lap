@@ -19,7 +19,7 @@ static unsigned long fiChanged[41];
 static void FIReset(void)
 {
  int i,j;
- for(i=1;i<=40;i++)if(fiCars[i].seen){FI_TRACE(fiCars[i].clock,"RESET_STATE active_id=%d",i);break;}
+ for(i=1;i<=40;i++)if(fiCars[i].seen){((void)0);break;}
  memset(fiCars,0,sizeof(fiCars));memset(fiBucket,0,sizeof(fiBucket));
  memset(fiPairs,0,sizeof(fiPairs));
  memset(fiPosition,0,sizeof(fiPosition));memset(fiDirection,0,sizeof(fiDirection));
@@ -34,26 +34,26 @@ static void FISample(int id,int lap,double position,unsigned long clock,int vali
 {
  FICar *c=&fiCars[id];double current=(lap-1)*30.0+position,t;long k;FIPassage *p;c->count=0;c->lap=lap;
  if(!valid || lap<1 || position<0 || position>=30){
-  if(c->seen)FI_TRACE(clock,"SAMPLE_INVALID id=%d lap=%d pos=%.6f valid=%d previous=%.6f previous_clock=%lu",id,lap,position,valid,c->progress,c->clock);
+  if(c->seen)((void)0);
   FIInvalidate(c);return;
  }
  /* Ignore sub-resolution reversal, without advancing the interpolation
     anchor. Sustained/real backwards travel still trips the original check. */
  if(c->seen && clock>=c->clock && clock-c->clock<=500 && current<c->progress && c->progress-current<=0.0001) {
-  FI_TRACE(clock,"POSITION_JITTER id=%d delta=%.8f anchor_clock=%lu",id,current-c->progress,c->clock);
+  ((void)0);
   return;
  }
  if(c->seen && ((long)(current/30)!=(long)(c->progress/30) || position<c->progress-(long)(c->progress/30)*30-15))
-  FI_TRACE(clock,"FINISH_TRANSITION id=%d lap=%d pos=%.6f previous=%.6f current=%.6f dt=%lu",id,lap,position,c->progress,current,clock-c->clock);
+  ((void)0);
  if(c->seen && (clock<c->clock || clock-c->clock>500 || current<c->progress || current-c->progress>3)) {
-  FI_TRACE(clock,"SAMPLE_RESET id=%d lap=%d pos=%.6f previous=%.6f delta=%.6f dt=%lu clock_back=%d timeout=%d backwards=%d jump=%d",id,lap,position,c->progress,current-c->progress,clock-c->clock,clock<c->clock,clock>=c->clock && clock-c->clock>500,current<c->progress,current-c->progress>3);
+  ((void)0);
   FIInvalidate(c);
  }
  if(c->seen && current>c->progress && clock>c->clock)for(k=(long)c->progress+1;k<=current;k++) {
   t=c->clock+(clock-c->clock)*(k-c->progress)/(current-c->progress);
   p=&c->passage[k%FI_HISTORY];p->key=k;p->time=t;p->valid=1;c->events[c->count++]=k;
   if(c->pitHold && ++c->afterPit>=6)c->pitHold=0;
-  FI_TRACE(clock,"CROSS id=%d lap=%d key=%ld point=%ld cross=%.3f generation=%lu",id,lap,k,k%30,t,c->generation);
+  ((void)0);
  }
  c->seen=1;c->progress=current;c->clock=clock;
 }
@@ -68,16 +68,16 @@ static void FIPitSample(int id,int lap,double position,unsigned long clock,int v
     this a pit stop or manufacture passage times. Require a recent anchor. */
  if(valid && lap>=1 && position<0 && (c->seen || c->pitHold) &&
     clock>=c->clock && clock-c->clock<=500 && !pit) {
-  if(!c->pitHold)FI_TRACE(clock,"ROUTE_HOLD id=%d lap=%d generation=%lu",id,lap,c->generation);
+  if(!c->pitHold)((void)0);
   for(j=0;j<41;j++){fiPairs[id][j].pitPending=1;fiPairs[j][id].pitPending=1;}
   c->pitHold=1;c->afterPit=0;c->seen=0;c->count=0;c->clock=clock;return;
  }
  if(valid && pit) {
   for(j=0;j<41;j++){fiPairs[id][j].pitPending=1;fiPairs[j][id].pitPending=1;}
-  if(!c->pit)FI_TRACE(clock,"PIT_HOLD id=%d lap=%d generation=%lu",id,lap,c->generation);
+  if(!c->pit)((void)0);
   c->pit=1;c->pitHold=1;c->afterPit=0;c->seen=0;c->count=0;c->clock=clock;return;
  }
- if(c->pit) {c->pit=0;FI_TRACE(clock,"PIT_REJOIN id=%d lap=%d",id,lap);}
+ if(c->pit) {c->pit=0;((void)0);}
  if(valid && c->pitHold && position<0) {
   c->seen=0;c->count=0;c->clock=clock;return;
  }
@@ -106,7 +106,7 @@ static void FIPublishBucket(int id,int channel,unsigned long clock)
   p->front=fiCars[b->ahead].generation;p->valid=1;
   p->pitPending=b->pitPending || fiCars[id].pitHold || fiCars[b->ahead].pitHold;
  }
- FI_TRACE(clock,"PUBLISH id=%d channel=%d ahead=%d key=%ld display=%ld count=%d",id,channel,b->ahead,b->last,b->display,b->count);
+ ((void)0);
 }
 /* Rebuild only from common passages belonging to the NEW pair. Never move
    an interval measured against the old opponent into the new comparison. */
@@ -122,7 +122,7 @@ static void FIRebase(int id,int ahead,int channel,unsigned long clock)
  }
  for(j=n-1;j>=0;j--)FIAddGap(b,keys[j],gaps[j]);
  FIPublishBucket(id,channel,clock);
- FI_TRACE(clock,"PAIR_REBASE id=%d channel=%d ahead=%d count=%d display=%ld",id,channel,ahead,b->count,b->display);
+ ((void)0);
 }
 static void FICollect(int id,int ahead,int channel,unsigned long clock)
 {
@@ -131,7 +131,7 @@ static void FICollect(int id,int ahead,int channel,unsigned long clock)
  if(ahead<1 || ahead==id){FIClearBucket(b,0);b->ahead=0;b->pitPending=0;return;}
  f=&fiCars[ahead];changed=b->ahead!=ahead;hold=a->pitHold || f->pitHold;
  if(changed || b->own!=a->generation || b->front!=f->generation) {
-  FI_TRACE(clock,"REFERENCE id=%d channel=%d ahead=%d old=%d changed=%d",id,channel,ahead,b->ahead,changed);
+  ((void)0);
   FIClearBucket(b,0);b->pitPending=hold;
   b->ahead=ahead;b->own=a->generation;b->front=f->generation;
   FIRebase(id,ahead,channel,clock);
@@ -139,7 +139,7 @@ static void FICollect(int id,int ahead,int channel,unsigned long clock)
    FIPairCache *p=&fiPairs[id][ahead];
    if((hold || p->pitPending) && p->valid && clock>=p->clock && p->own==a->generation && p->front==f->generation) {
     b->display=p->display;b->precise=p->precise;b->pitPending=1;
-    FI_TRACE(clock,"PAIR_RESTORE id=%d channel=%d ahead=%d display=%ld",id,channel,ahead,b->display);
+    ((void)0);
    }
   }
  }
@@ -157,7 +157,7 @@ static void FICollect(int id,int ahead,int channel,unsigned long clock)
   if(key<=b->last)continue; /* Rebase may already include this tick's crossing. */
   own=&a->passage[key%FI_HISTORY];front=&f->passage[key%FI_HISTORY];
   if(!front->valid || front->key!=key || front->time>own->time) {
-   FI_TRACE(clock,"MISSING_POINT id=%d channel=%d ahead=%d key=%ld pit_hold=%d",id,channel,ahead,key,hold);
+   ((void)0);
    FIClearBucket(b,hold);
    if(hold)FIRebase(id,ahead,channel,clock);
    continue;
@@ -166,7 +166,7 @@ static void FICollect(int id,int ahead,int channel,unsigned long clock)
   gap=(long)(own->time-front->time+0.5);partial=b->count<6;
   FIAddGap(b,key,gap);
   b->pitPending=0;
-  FI_TRACE(clock,"MEASURE id=%d channel=%d ahead=%d key=%ld gap=%ld count=%d",id,channel,ahead,key,gap,b->count);
+  ((void)0);
   if(partial || key%3==0)FIPublishBucket(id,channel,clock);
  }
 }

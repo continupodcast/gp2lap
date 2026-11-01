@@ -19,6 +19,41 @@ itemdef items[] = {         // item names are case insensitive
     NULL, ULONGTYPE,  "atlAcrossTop",
     NULL, ULONGTYPE,  "atlMarkTopX",
 
+    //[TYRES]
+    NULL, ULONGTYPE, "StrategyPlayerEnabled",
+    NULL, ULONGTYPE, "StrategyPlayerPitChoice",
+    NULL, ULONGTYPE, "StrategyRequireCompoundChange",
+    NULL, ULONGTYPE, "StrategyDistributionEnabled",
+    NULL, ULONGTYPE, "StrategyDiagnostics",
+    NULL, ULONGTYPE, "StrategyAutoEnabled",
+    NULL, ULONGTYPE, "StrategyAutoSeed",
+    NULL, ULONGTYPE, "StrategyRepairTestEnabled",
+    NULL, ULONGTYPE, "StrategyTestEnabled",
+    NULL, ULONGTYPE, "TyreTestFuelLaps",
+    NULL, ULONGTYPE, "TyreDiagnostics",
+    NULL, ULONGTYPE, "TyreTestCompound",
+    NULL, ULONGTYPE, "EnhancedCameras",
+    NULL, ULONGTYPE, "QGridEnabled",
+    NULL, STRTYPE, "QGridOrder",
+    NULL, ULONGTYPE,  "PerCarTyreCompounds",
+    NULL, ULONGTYPE,  "SoftTyresInQuali",
+    NULL, ULONGTYPE,  "ShowTyreCompoundBadge",
+
+    //[TEXTURES]
+    NULL, ULONGTYPE,  "JamTextureExtraMB",
+
+    //[AI]
+    NULL, ULONGTYPE,  "AILowHpLaunchFix",
+    NULL, ULONGTYPE,  "AILaunchFadeKmh",
+    NULL, ULONGTYPE,  "AIBankingRoll",
+
+    //[TRACK]
+    NULL, ULONGTYPE,  "ExtraTrackSegments",
+    NULL, ULONGTYPE,  "ExtraTrackFileKB",
+    NULL, ULONGTYPE,  "PitSpeedKmh",
+    NULL, ULONGTYPE,  "AllowSmallGrid",
+    NULL, STRTYPE,    "SeasonOverrides",
+
     //[TRACK MAP]
     NULL, ULONGTYPE,  "mapTrackColor",
     NULL, ULONGTYPE,  "mapHAlign",

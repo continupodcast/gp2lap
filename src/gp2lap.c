@@ -209,7 +209,7 @@ int main(int argc, const char *argv[])
 #endif
 
 	printf(GP2LAP_BANNER_STR);
-    printf("F1 HUD 0.35 - broadcast panels / map zoom - keys 3 / TAB / 4 / 5 / 6 / 7\n");
+    printf("F1 HUD 0.8 - tyre compounds / race strategy / broadcast HUD\n");
     F1DiagBoot();
 #ifdef SOCKCLNT
 	printf("This version of GP2Lap was compiled as a socket client.\n");
@@ -272,6 +272,8 @@ int main(int argc, const char *argv[])
 	if (opt_spa98)
 		printf("- Spa '98 enabled\n");
 
+	/* T4 measurement build: only tyre CSV diagnostics are enabled. */
+	log_flags |= BLF_DISABLED; opt_log_perf=0; opt_log_glx=0; opt_log_cc=0;
 	if (!LogStart(log_flags, gp2logname) && isoff(log_flags, BLF_DISABLED))
 		fprintf(stderr, "*** error opening logfile '%s'\n", gp2logname);
 	atexit(LogEnd);

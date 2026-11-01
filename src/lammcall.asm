@@ -9,6 +9,27 @@ _TEXT   SEGMENT BYTE PUBLIC USE32 'CODE'
         ASSUME  cs:_TEXT
 
         PUBLIC  RcvGP2Call_
+        PUBLIC  MyCompoundToBL_
+        PUBLIC  MyCockpitColors_
+        PUBLIC  AccelEffHP_
+        PUBLIC  MyTeamMass_
+        PUBLIC  MyScaleDF_
+        PUBLIC  BankRoll_
+        PUBLIC  CockpitRoll_
+        PUBLIC  MyRestoreGameState_
+        PUBLIC  GridCapCopyCount_
+        PUBLIC  GridCapFinalize_
+        PUBLIC  GridCapPlace_
+        PUBLIC  StrategyServiceHook_
+        EXTRN   _StrategyServiceOriginal :dword
+        EXTRN   _F1StrategyServiceAfter :near
+        PUBLIC  QuickGridHook_
+        EXTRN   _QGridFinalize :dword
+        EXTRN   _QuickGridApply :near
+        EXTRN   _QuickGridVerify :near
+        PUBLIC  GridCapMenuHook_
+        PUBLIC  SprintCave_
+        PUBLIC  MyHelmetTex_
 
         EXTRN   _GP2_Found              :dword
         EXTRN   _GP2_FoundAdr           :dword
@@ -44,6 +65,7 @@ _TEXT   SEGMENT BYTE PUBLIC USE32 'CODE'
         ;------- Hooks
         EXTRN   _fpEOFCode              :dword
         EXTRN   _fpSOLCode              :dword
+        EXTRN   _fpTyrePitLapCode        :dword
         EXTRN   _fpPICode               :dword
         EXTRN   _fpPOCode               :dword
         EXTRN   _fpRetireCode           :dword
@@ -57,6 +79,49 @@ _TEXT   SEGMENT BYTE PUBLIC USE32 'CODE'
         EXTRN   _fpSPDFCode             :dword
         EXTRN   _fpInitGP2Code          :dword
         EXTRN   _fpPrfCode              :dword
+        EXTRN   _fpCarTexCode           :dword
+        EXTRN   _fpCockpitColCode       :dword
+        EXTRN   _fpCarShapeCode         :dword
+        EXTRN   _fpHelmetTexCode        :dword
+        EXTRN   _HelmetTexOrig          :dword
+        EXTRN   _CarShapeCarPtr         :dword
+        EXTRN   _AILaunchFadeBuckets    :dword
+        EXTRN   _TeamMassLbs            :dword
+        EXTRN   _TeamDFMult             :dword
+        EXTRN   _pCarStdWeight          :dword
+        EXTRN   _pW173F8C               :dword
+        EXTRN   _pD40EC                 :dword
+        EXTRN   _fpDrvDataReapply       :dword
+        EXTRN   _RestoreGameStateAddr   :dword
+
+        EXTRN   _GcBRaceModePtr         :dword
+        EXTRN   _GcInitCarESI           :dword
+        EXTRN   _GcRCarRetires          :dword
+        EXTRN   _GcPlaceRejoin          :dword
+        EXTRN   _GcPlaceNoRace          :dword
+        EXTRN   _GcPlaceRace            :dword
+
+        EXTRN   _pCB608Val              :dword    ; &dword_0_4CB608 (results row count)
+        EXTRN   _fpGridCapMenu          :dword    ; C: compact t_CarRaceOrder at menu setup
+
+        ; --- 2026 (2b) sprint cave: resolved GP2 fn/data/jump addresses (SessionsInit fills) ---
+        EXTRN   _Sp_GridA               :dword    ; sub_0_2C039
+        EXTRN   _Sp_GridB               :dword    ; sub_0_2C12D
+        EXTRN   _Sp_InitStart           :dword    ; InitStartOrder 0x2C25F
+        EXTRN   _Sp_GridFin             :dword    ; sub_0_2C19D grid-finalise
+        EXTRN   _Sp_RaceMain            :dword    ; RaceMainFunc 0x6A352
+        EXTRN   _Sp_Cleanup             :dword    ; sub_0_6A6B0
+        EXTRN   _Sp_LapDerive           :dword    ; sub_0_1710F (re-derive full laps)
+        EXTRN   _Sp_pGridReady          :dword    ; &byte_0_179648
+        EXTRN   _Sp_pLaps               :dword    ; &w_LapsInThisRace (0x179638)
+        EXTRN   _Sp_pLapBound           :dword    ; &dword_0_17963A
+        EXTRN   _Sp_pTimeCap            :dword    ; &word_0_179642
+        EXTRN   _Sp_pRaceMode           :dword    ; &b_RaceMode (0x17964A)
+        EXTRN   _Sp_pMask               :dword    ; &byte_0_179646
+        EXTRN   _Sp_pAbort              :dword    ; &byte_0_174E4E
+        EXTRN   _Sp_jLoop               :dword    ; loc_0_6A793 (offer next session)
+        EXTRN   _Sp_jExit               :dword    ; loc_0_6AE10 (abort -> exit weekend)
+        EXTRN   _Sp_Laps                :dword    ; sprint lap count (value)
 
         EXTRN   _pSessionMode           :dword
         EXTRN   _pIsReplay              :dword
@@ -576,11 +641,51 @@ Hook_Prf:       call    CodeStub_
                 test    edi,edi
                 jz      hprf_end
                 call    edi
-hprf_end:		
+hprf_end:
                 popad
                 popfd
                 retn
 
+
+
+;------ Per-car texture swap (before the number-blit dispatcher) -----
+Hook_CarTex:
+                pushfd
+                pushad
+                call    dword ptr ds:_fpCarTexCode   ; resolve + swap atlas
+                popad
+                popfd
+hcartex_pl:
+                call    CodeStub_       ; patched -> original sub_0_65D3B (number blits)
+                retn
+
+
+
+ ; Native refuel return, shared by live normal/accelerated physics.
+StrategyServiceHook_:
+                call    dword ptr ds:_StrategyServiceOriginal
+                pushfd
+                pushad
+                call    _F1StrategyServiceAfter
+                popad
+                popfd
+                retn
+
+;------ Per-team car shape swap (before sub_677D0 / the t_interobjs[0] draw) -----
+Hook_CarShape:
+                pushfd
+                pushad
+                mov     ds:_CarShapeCarPtr, esi   ; stash the car (ESI) before the original runs
+                popad
+                popfd
+hcarshape_pl:
+                call    CodeStub_       ; patched -> original sub_0_677D0 (sets team nose/colour globals)
+                pushfd
+                pushad
+                call    dword ptr ds:_fpCarShapeCode   ; our swap + nose override, AFTER sub_677D0 (so CB358 sticks)
+                popad
+                popfd
+                retn
 
 
 
@@ -597,6 +702,8 @@ hprf_end:
 ;-----------------------------------------------------------------------------------
 ; Format: [IDA-code-address], [hookcond ptr], [gp2lap hook function], [gp2lap org hook jump address]
 ;-----------------------------------------------------------------------------------
+; (2026) per-car compound fill now runs from AHFSOSHook at start-of-session,
+; where bSessionMode is current; no SetSetups?? hook needed any more.
 code_hooks:
                 dd      32c5ch, swAlwaysTrue, Hook_EOF,         Hook_EOF        ; end of frame
                 dd      35e26h, swAlwaysTrue, Hook_SOS,         Hook_SOS        ; start of session
@@ -610,6 +717,8 @@ code_hooks:
                 dd      2acc6h, swAlwaysTrue, Hook_PO,          Hook_PO         ; pit out (off jacks)
                 dd      19f87h, swAlwaysTrue, Hook_Retire,      Hook_Retire     ; retire; (other check at 31916+...)
                 dd      1c8f9h, swAlwaysTrue, Hook_Prf,         Hook_Prf        ; perf data
+                dd      664c3h, swAlwaysTrue, Hook_CarTex,      hcartex_pl      ; per-car texture swap
+                dd      67a5fh, swAlwaysTrue, Hook_CarShape,    hcarshape_pl    ; per-team shape swap
                 dd      0
 ;!!!!!!!!
 ;WARNING: there's a second table in frankasm.inc. Check first for interferings...
@@ -741,6 +850,398 @@ code_locs:
 pFileErrno      dd      0       ; byte**
 fpCheckChecksum dd      0
 
+;-------------------------------------------------------------------
+; 2026 --- per-car tyre compound helper -----------------------------
+; Patched (by AHFAfterGp2Init, when PerCarTyreCompounds=1) over GP2's
+; "mov bl, b_TireType" inside CalcESIsGrip? (IDA 0x30436). On entry
+; ESI = the car being processed; returns that car's compound (0..3) in
+; BL, leaving every other register untouched (caller does "and ebx,0FFh"
+; next). Phase-1 debug source = (carnumber-1) mod 4, so cars visibly run
+; A/B/C/D round-robin; Phase 2 will read the per-car setup record (+8).
+MyCompoundToBL_ proc    near
+                push    eax
+                push    edx
+                movzx   eax,byte ptr [esi+0A6h] ; car_id
+                test    al,80h                  ; human/player car?
+                jnz     Mctb_human
+                and     eax,3Fh                 ; car number 1..40
+                dec     eax                     ; 0-based index
+                mov     edx,30h                 ; sizeof(GP2CSx)
+                mul     edx                     ; eax = index * 0x30
+                add     eax,ds:_pCarSetups      ; eax = &pCarSetups[index]
+                jmp     Mctb_got
+Mctb_human:
+                mov     eax,ds:_pPlayerSetup
+Mctb_got:
+                mov     bl,[eax+8]              ; GP2CSx.compound (0..3)
+                pop     edx
+                pop     eax
+                retn
+MyCompoundToBL_ endp
+
+;-------------------------------------------------------------------
+; 2026 --- per-car cockpit colour read-site helper ------------------
+; Patched (by CarCockpitInit, when [CockpitColors] entries exist) over
+; the per-team computation inside rUpdCarsCockpit (IDA 0x69EDD, 49 bytes
+; replaced by "call MyCockpitColors" + NOPs). Sets byte_CA0A0/A1/A2 for
+; the cockpit car (per-car override, else stock per-team) and returns,
+; clobbering nothing; execution then falls through to the stock cockpit
+; redraw (call sub_713EC @0x69F0E).
+MyCockpitColors_ proc    near
+                pushfd
+                pushad
+                call    dword ptr ds:_fpCockpitColCode
+                popad
+                popfd
+                retn
+MyCockpitColors_ endp
+
+
+;-------------------------------------------------------------------
+; 2026 --- per-driver custom helmet remap. Installed (CarHelmetInit, when any
+; driver has a Helmet BMP) over the single call site of sub_41D50 (the per-
+; textured-polygon resolver, IDA 0x440B1), re-pointed here. Runs AHFHelmetSwap
+; first (overwrites the resolved stock helmet slot's image+palette in place
+; for a carId with a custom helmet, else restores the stock snapshot), THEN
+; tail-calls the original sub_41D50 so it builds its palette LUT from ours.
+MyHelmetTex_    proc    near
+                pushfd
+                pushad
+                call    dword ptr ds:_fpHelmetTexCode   ; AHFHelmetSwap: overwrite/restore before sub_41D50
+                popad
+                popfd
+                jmp     dword ptr ds:_HelmetTexOrig     ; tail-call original sub_41D50 (rets to caller)
+MyHelmetTex_    endp
+
+
+
+;-------------------------------------------------------------------
+; 2026 --- AI low-HP launch fix: speed-faded effective engine power.
+; Patched (by AiLaunchFixInit, when AILowHpLaunchFix=1) over the 13-byte
+; enginePower multiply inside the AI accel apply (IDA 0x22F25). On entry
+;   EAX = accel accumulator, EBX = speed (|car.field_14|>>2), ESI = car.
+; Replaces "x enginePower >>14" with "x effHP >>14", where
+;   effHP = 0x4000 + (enginePower-0x4000) * min(EBX>>20, K) / K
+;   K = _AILaunchFadeBuckets (>=1, clamped at init).
+; So the HP scaling fades in with speed: reference power at a standstill
+; (no low-HP launch penalty), the car's real power by speed K. Returns the
+; scaled accumulator in EAX; preserves EBX/ECX/EBP/ESI (EDX is scratch,
+; overwritten by the next instruction at 0x22F32).
+AccelEffHP_     proc    near
+                push    ebx
+                push    ecx
+                push    eax                     ; save accel accumulator
+                mov     ecx, ds:_AILaunchFadeBuckets    ; K
+                shr     ebx, 14h                ; vb = speed bucket (EBX >> 20)
+                cmp     ebx, ecx
+                jb      short aef_havevb
+                mov     ebx, ecx                ; min(vb, K)
+aef_havevb:
+                movsx   eax, word ptr [esi+0A2h]        ; enginePower (signed)
+                sub     eax, 4000h              ; delta = HP - ref
+                imul    ebx                     ; EDX:EAX = delta * vb
+                idiv    ecx                     ; EAX = (delta * vb) / K
+                add     eax, 4000h              ; effHP
+                mov     ebx, eax                ; EBX = effHP
+                pop     eax                     ; restore accumulator
+                imul    ebx                     ; EDX:EAX = accumulator * effHP
+                shrd    eax, edx, 0Eh           ; EAX = (..) >> 14   (mirror of original)
+                pop     ecx
+                pop     ebx
+                retn
+AccelEffHP_     endp
+
+;-------------------------------------------------------------------
+; 2026 --- AI banking roll. Patched (by AiBankingInit, when AIBankingRoll=1)
+; over "mov dx,[esi+15Eh]" (66 8B 96 5E 01 00 00) at IDA 0x67C1A, in the per-car
+; drawer sub_0_67AC8. On entry ESI = the car struct being drawn; car+0x15E is the
+; body-roll angle that the model draw consumes. Reproduces the original load, then
+; adds the car's current segment banking (seg = [esi+10h], banking = [seg+0x26])
+; into the transient DX so the body rolls onto the banked surface. Banking is
+; already in model-angle units (raw add). Preserves all regs except DX; flags
+; restored. SIGN: '+'. If cars bank the wrong way in-game, change the add to "sub".
+; AI banking roll. Patched over "mov word_173F8C, bp" (66 89 2D ..) at IDA 0x67C2B, the
+; ROLL-angle slot in the per-car drawer (confirmed: a fixed value here visibly rolls the
+; car model). On entry BP = the original value (173FC8), ESI = car. Stores BP (original)
+; then SUBTRACTS the car's current segment banking (seg = [esi+10h], banking = [seg+0x26])
+; so the body leans onto the banked surface. Banking is already in model-angle units (raw).
+; SIGN: '+' (verified in-game: subtract rolled them out of the bank, add leans them in).
+; Self-disables on flat track (banking 0). Preserves all regs except the written global.
+BankRoll_       proc    near
+                push    eax
+                push    esi
+                mov     eax, [esi+10h]          ; eax = car -> current segment
+                mov     esi, ds:_pW173F8C       ; esi = &word_173F8C
+                mov     [esi], bp               ; word_173F8C = bp   (original store)
+                test    eax, eax
+                jz      br_done
+                mov     ax, [eax+26h]           ; ax = banking (tseg+0x26)
+                add     [esi], ax               ; word_173F8C += banking   (sign verified in-game)
+br_done:
+                pop     esi
+                pop     eax
+                retn
+BankRoll_       endp
+
+;-------------------------------------------------------------------
+; 2026 --- AI banking roll, COCKPIT camera. Patched over "mov word_D40EC, ax"
+; (66 A3 EC 40 0D 00) at IDA 0x383B9 in sub_0_38365 (view-angle load). On entry
+; AX = word_173FC8 (the native cockpit camera roll = elevation + 1x banking), EDI =
+; the player car's segment ([p_CarInViewCS+0x10], set @0x3836B and preserved). Adds the
+; segment banking so word_D40EC = 173FC8 + banking -- the cockpit view rolls the same as
+; the player car model (word_173F8C). Cockpit-only: TV/external handlers zero word_F9CF0.
+CockpitRoll_    proc    near
+                add     ax, [edi+26h]           ; ax += banking (player seg)   <-- flip to "sub" if inverted
+                push    esi
+                mov     esi, ds:_pD40EC         ; flat &word_D40EC
+                mov     [esi], ax               ; word_D40EC = ax  (16-bit, mirrors 66 A3)
+                pop     esi
+                retn
+CockpitRoll_    endp
+
+;-------------------------------------------------------------------
+; 2026 --- per-team MASS. Patched over `add eax, d_carstdweight` @0x2C510
+; (FLoadToCarWght). On entry EAX = fuel weight, ESI = car. Adds the team's
+; chassis weight (TeamMassLbs[teamNr-1], lbs) if set, else the live
+; d_carstdweight (exe value, edited or not). Invalid teamNr (incl the
+; accel-table dummy, teamNr 0) -> stock. Only EAX changes.
+MyTeamMass_     proc    near
+                push    ecx
+                push    edx
+                movzx   ecx, byte ptr [esi+25h]     ; teamNr 1..14
+                dec     ecx                         ; 0-based
+                cmp     ecx, 14
+                jae     mtm_stock                   ; invalid / dummy -> stock
+                mov     edx, ds:_TeamMassLbs[ecx*4]
+                test    edx, edx
+                jnz     mtm_add                     ; team overridden
+mtm_stock:
+                mov     edx, ds:_pCarStdWeight      ; &d_carstdweight
+                mov     edx, [edx]                  ; *d_carstdweight (live)
+mtm_add:
+                add     eax, edx
+                pop     edx
+                pop     ecx
+                retn
+MyTeamMass_     endp
+
+;-------------------------------------------------------------------
+; 2026 --- per-team DOWNFORCE. Patched over `mov eax,[esi+16Ch]` +
+; `mov [esi+4Eh],ax` (10 bytes) @0x168C7 in CalcWings?, after +0x170 (the
+; front/rear split) is computed -- so scaling +0x16C (the downforce
+; magnitude) keeps the balance and never touches +0x174 (drag). Scales by
+; TeamDFMult[teamNr-1] % (1..200) when set; copies the result to +0x4E.
+; Invalid teamNr (incl dummy) -> pass through unscaled. EAX dead after.
+MyScaleDF_      proc    near
+                push    ecx
+                push    edx
+                mov     eax, [esi+16Ch]             ; rear DF magnitude
+                movzx   ecx, byte ptr [esi+25h]     ; teamNr
+                dec     ecx
+                cmp     ecx, 14
+                jae     msd_copy                    ; invalid / dummy -> no scale
+                mov     edx, ds:_TeamDFMult[ecx*4]
+                test    edx, edx
+                jz      msd_copy                    ; team not overridden
+                imul    edx                         ; EDX:EAX = DF * pct
+                mov     ecx, 100
+                idiv    ecx                         ; EAX = DF*pct/100
+                mov     [esi+16Ch], eax             ; scaled magnitude
+msd_copy:
+                mov     [esi+4Eh], ax               ; +0x4E = (scaled|orig) low word
+                pop     edx
+                pop     ecx
+                retn
+MyScaleDF_      endp
+
+;-------------------------------------------------------------------
+; 2026 --- per-driver data: re-apply wrap on RestoreGameState.
+; Installed (by DriverDataInit, when any driver data is patched) over the three
+; 5-byte E8 calls to RestoreGameState (IDA 0x6B600 / 0x6BBFB / 0x6BE24), each
+; re-pointed at this stub. RestoreGameState overwrites the save block, which
+; contains t_DriverNames + t_CaridTeamTab; we call the original first (its flat
+; address lives in _RestoreGameStateAddr, stored at install time), then call the
+; C reapply which re-writes ONLY those two tables. EAX/flags after the original
+; are preserved across the reapply (pushad/pushfd) so the caller sees the stock
+; result of RestoreGameState. GP2 subs are register/stack-transparent across this
+; extra call frame (same convention the code_hooks "call original first" stubs rely on).
+MyRestoreGameState_ proc near
+                call    dword ptr ds:_RestoreGameStateAddr      ; original RestoreGameState
+                pushfd
+                pushad
+                call    dword ptr ds:_fpDrvDataReapply
+                popad
+                popfd
+                retn
+MyRestoreGameState_ endp
+
+;-------------------------------------------------------------------
+; 2026 --- small-grid support (AllowSmallGrid). Two stubs patched (by
+; GridCapInit) over the hard "26" literals in the race-grid finaliser
+; sub_0_2C19D, retargeting them to min(N,26) where N = w_NumCars_26_
+; (16-bit, via ds:_pNumCars). t_GridTable is reached via ds:_pCarIDs
+; (= IDA 0xCCB58, both resolved by WWPatchDataHooks). For a full field
+; (N>=26) both are exact no-ops -> stock behaviour preserved.
+
+; Replaces "mov ecx,26" @0x2C1AD (the t_CarStartOrder->t_GridTable copy
+; count). Sets ECX = min(w_NumCars_26_,26). The original mov set no flags
+; the following code relied on (the loop body re-tests), but we still keep
+; the caller's flags + EDX intact. ECX is the intended output.
+QuickGridHook_ proc near
+                pushfd
+                pushad
+                call    _QuickGridApply
+                popad
+                popfd
+                call    dword ptr ds:_QGridFinalize
+                pushfd
+                pushad
+                call    _QuickGridVerify
+                popad
+                popfd
+                retn
+QuickGridHook_ endp
+
+GridCapCopyCount_ proc near
+                push    edx
+                pushfd
+                mov     edx, ds:_pNumCars       ; &w_NumCars_26_
+                movzx   ecx, word ptr [edx]     ; ECX = N (zero-extended 16-bit)
+                cmp     ecx, 26
+                jbe     short gccc_ok
+                mov     ecx, 26                 ; min(N,26)
+gccc_ok:
+                popfd
+                pop     edx
+                retn
+GridCapCopyCount_ endp
+
+; Replaces "mov w_NumCars_26_,26" (9 bytes) @0x2C1C7. Writes
+; w_NumCars_26_ = min(N,26) and zeroes t_GridTable[field..25] so the
+; trailing grid slots become empty (carId 0) instead of stale phantoms.
+; The original instruction only touched memory, so all GP registers and
+; flags are preserved here.
+GridCapFinalize_ proc near
+                push    eax
+                push    ecx
+                push    edx
+                pushfd
+                mov     edx, ds:_pNumCars       ; &w_NumCars_26_
+                movzx   eax, word ptr [edx]     ; EAX = N
+                cmp     eax, 26
+                jbe     short gcf_haveN
+                mov     eax, 26                 ; min(N,26)
+gcf_haveN:
+                mov     [edx], ax               ; w_NumCars_26_ = min(N,26) (16-bit)
+                mov     edx, ds:_pCarIDs        ; &t_GridTable (0xCCB58)
+                mov     ecx, eax                ; start index = field
+gcf_zloop:
+                cmp     ecx, 26
+                jae     short gcf_done
+                mov     byte ptr [edx+ecx], 0   ; t_GridTable[i] = 0 (empty slot)
+                inc     ecx
+                jmp     short gcf_zloop
+gcf_done:
+                popfd
+                pop     edx
+                pop     ecx
+                pop     eax
+                retn
+GridCapFinalize_ endp
+
+;-------------------------------------------------------------------
+; 2026 --- small-grid placement detour (AllowSmallGrid). Installed by
+; GridCapInit via an E9 jmp over the 9-byte "test b_RaceMode,0FFh /
+; jns L_NoRace" at the top of the car-placement loop sub_0_2C785
+; (IDA 0x2C7A1). Mirrors the engine's own SILENT retire idiom
+; sub_0_2C91D: for a RACE phantom (carId byte [esi+0A6h] == 0) we run
+; InitCarESI + rCarRetires exactly like the non-race L_NoRace path, then
+; set field_5E bit1 to suppress the race-only retirement announcer (which
+; keys on flags_90 0x20 + field_5E bits clear), then rejoin at L_NoRace2.
+; Real cars and ALL non-race cars take their stock branches unchanged, so
+; for a full field (no carId-0 tail) this is a byte-for-byte no-op.
+;   esi = car ptr (LIVE -- preserved across InitCarESI/rCarRetires);
+;   eax/ecx/edx are free here (the race branch + InitCarESI set them).
+GridCapPlace_ proc near
+                push    eax                         ; keep eax intact for the stock branches
+                mov     eax, ds:_GcBRaceModePtr     ; &b_RaceMode (resolved disp32)
+                test    byte ptr [eax], 0FFh
+                pop     eax                         ; (pop preserves flags) -> stock eax restored
+                jns     gcp_norace                  ; non-race -> stock L_NoRace
+                cmp     byte ptr [esi+0A6h], 0      ; race: phantom carId 0?
+                jne     gcp_real                    ; real car -> stock race branch
+                xor     eax, eax                    ; phantom: InitCarESI(0,0,0) ...
+                xor     ecx, ecx
+                xor     edx, edx
+                call    dword ptr ds:_GcInitCarESI  ; 0x2C69A
+                call    dword ptr ds:_GcRCarRetires ; 0x2C495 (flags_90|=0xA0, field_5E|=0x10 ...)
+                or      byte ptr [esi+5Eh], 2       ; field_5E bit1 = announce-suppress
+                jmp     dword ptr ds:_GcPlaceRejoin ; 0x2C7F1 (L_NoRace2: grid spacing + loop continue)
+gcp_norace:
+                jmp     dword ptr ds:_GcPlaceNoRace ; 0x2C7DB (stock L_NoRace)
+gcp_real:
+                jmp     dword ptr ds:_GcPlaceRace   ; 0x2C7AA (stock race branch)
+GridCapPlace_ endp
+
+;-------------------------------------------------------------------
+; 2026 --- small-grid results fix (AllowSmallGrid). Replaces the results
+; row-count write "mov dword_0_4CB608,eax" @0x82A42 (5 bytes A3 08 B6 4C 00)
+; inside sub_0_82A1E (menu setup, runs once post-race AFTER the finish-time
+; sort has relocated the carId-0 phantoms to the front of t_CarRaceOrder and
+; BEFORE the results widget renders). Do the original store, then call the C
+; compactor which drops the carId-0 entries and shifts the real finishers
+; (already in correct time order) to the front. eax = the count (preserved).
+GridCapMenuHook_ proc near
+                push    ebx
+                mov     ebx, ds:_pCB608Val
+                mov     [ebx], eax                  ; original: dword_0_4CB608 = eax
+                pop     ebx
+                pushfd
+                pushad
+                call    dword ptr ds:_fpGridCapMenu
+                popad
+                popfd
+                retn
+GridCapMenuHook_ endp
+
+;-------------------------------------------------------------------
+; 2026 (2b) --- SPRINT cave. Installed by SessionsInit into the warmup dispatch
+; slot t_FuncTab6A7C9[4] (@0x6A7D9) when [Weekend] Sprint=1. Entered by the weekend
+; loop's `jmp cs:[eax]` (a tail-call), so it must NOT retn -- it jmps back to the loop
+; (0x6A793) to offer the next session (the feature race), exactly like the stock warmup
+; handler. Mirrors the race handler's grid-build + timing + race, sets a SHORT lap count,
+; and -- crucially -- does NOT write the 0xC0 weekend-end mask; instead it clears only the
+; warmup bit (and 0EFh), leaving the race bit set so the feature race still runs. All GP2
+; addresses come from resolved globals (SessionsInit). eax/ecx = scratch (the loop re-reads
+; its own state). The feature race re-derives its full lap count via its own weekend-init.
+SprintCave_     proc    near
+                mov     eax, ds:_Sp_pGridReady      ; byte_0_179648 = 80h (grid ready)
+                mov     byte ptr [eax], 80h
+                call    dword ptr ds:_Sp_GridA      ; build the grid (from the qualified order)
+                call    dword ptr ds:_Sp_GridB
+                call    dword ptr ds:_Sp_InitStart
+                mov     eax, ds:_Sp_pLaps           ; w_LapsInThisRace = sprint laps (word)
+                mov     ecx, ds:_Sp_Laps
+                mov     word ptr [eax], cx
+                mov     eax, ds:_Sp_pLapBound       ; dword_0_17963A = 10000 (lap bound off)
+                mov     dword ptr [eax], 10000
+                mov     eax, ds:_Sp_pTimeCap        ; word_0_179642 = 120 min time cap
+                mov     word ptr [eax], 120
+                mov     eax, ds:_Sp_pRaceMode       ; b_RaceMode = 80h (RACE)
+                mov     byte ptr [eax], 80h
+                call    dword ptr ds:_Sp_GridFin    ; sub_0_2C19D grid-finalise
+                call    dword ptr ds:_Sp_RaceMain   ; RaceMainFunc -- run the sprint
+                call    dword ptr ds:_Sp_Cleanup    ; sub_0_6A6B0 post-race cleanup
+                call    dword ptr ds:_Sp_LapDerive  ; sub_0_1710F -- restore full laps for the feature race
+                mov     eax, ds:_Sp_pMask           ; consume ONLY the warmup bit, keep race+controls
+                and     byte ptr [eax], 0EFh
+                mov     eax, ds:_Sp_pAbort          ; byte_0_174E4E: aborted?
+                cmp     byte ptr [eax], 0FFh
+                jz      sc_exit
+                jmp     dword ptr ds:_Sp_jLoop      ; 0x6A793 -- re-offer the next session
+sc_exit:
+                jmp     dword ptr ds:_Sp_jExit      ; 0x6AE10 -- abort -> exit weekend
+SprintCave_     endp
 
 _TEXT   ENDS
         END

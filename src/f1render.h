@@ -1,3 +1,4 @@
+#include "f1features.h"
 #ifndef F1RENDER_H
 #define F1RENDER_H
 typedef struct { int id,position; unsigned long elapsed; } F1PitDisplay;
@@ -6,10 +7,11 @@ void F1RenderPitDisplays(unsigned char *,const unsigned char *,const F1PitDispla
 #define F1_PANEL_X 8
 #define F1_PANEL_Y 8
 #define F1_PANEL_W 104
+#define F1_RACE_W (F1_PANEL_W+F1_TYRE_EXTRA)
 #define F1_HEADER_H 34
 #define F1_ROW_H 13
 /* -1 gap means unavailable. Palette entries are VGA 6-bit RGB. */
-typedef struct { int id, pos, lap, out, pit, focused; long gap; int gain, stops; long leaderGap; int lapsBehind, fastest, positionChange, finished; } F1Row;
+typedef struct { int id, pos, lap, out, pit, focused; long gap; int gain, stops; long leaderGap; int lapsBehind, fastest, positionChange, finished, compound, tyreLaps; } F1Row;
 int F1Window(const F1Row *rows, int count, int focusId, int *start);
 void F1Gap(char *label, long milliseconds);
 void F1Render(unsigned char *screen, const unsigned char *palette,
@@ -53,3 +55,7 @@ void F1RenderMap(unsigned char *dst,const unsigned char *pal,const F1MapPoint *t
 void F1RenderFullMap(unsigned char *dst,const unsigned char *pal,const F1MapPoint *track,int count,
     const F1MapPoint *pits,int pitcount,const F1MapCar *cars,int n,int focus);
 #endif
+
+void F1RenderGridMenu(unsigned char *,const unsigned char *,const unsigned char *,const unsigned long *,int,long,long,const char *,const char *,int,const int *);
+
+void F1RenderGridControl(unsigned char *,const unsigned char *,const int *,int,int,long,long);

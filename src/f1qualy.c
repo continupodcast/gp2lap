@@ -7,9 +7,28 @@
 #include "miscahf.h"
 #include "timing/gp2struc.h"
 #include "f1qualy.h"
+#include "f1combined.h"
+extern struct gp2timetable *GP2_QualTimesSes1,*GP2_QualTimesSes2;
+int F1QCombinedMode;
+void F1QualyTab(unsigned int scan,int active)
+{
+    if(scan==15 && active && pSessionMode && (*pSessionMode==0x40 || *pSessionMode==0x44)) {
+        FILE *f;int n,i;const F1QRow *rows;
+        F1QCombinedMode=!F1QCombinedMode;
+        f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;
+        if(f) {
+            fprintf(f,"v0.75 TAB mode=%02X combined=%d clock=%lu fri_ptr=%d sat_ptr=%d\n",(unsigned)*pSessionMode,F1QCombinedMode,pCurTime?*pCurTime:0,GP2_QualTimesSes1!=NULL,GP2_QualTimesSes2!=NULL);
+            rows=F1QRows(&n);
+            for(i=0;i<n;i++)if(rows[i].id>=1 && rows[i].id<=40)fprintf(f,"CarId=%d current=%ld friday_raw=%lu saturday_raw=%lu\n",rows[i].id,rows[i].best,GP2_QualTimesSes1?GP2_QualTimesSes1->car[rows[i].id-1]:0,GP2_QualTimesSes2?GP2_QualTimesSes2->car[rows[i].id-1]:0);
+            fclose(f);
+        }
+    }
+}
 extern struct gp2timetable *GP2_BestLaptimes,*GP2_BestSplit1,*GP2_BestSplit2;
 typedef char F1QStartCheck[offsetof(GP2Car,timeLapStart)==0x54?1:-1];
 typedef char F1QBestCheck[offsetof(GP2Car,timeBest)==0x2e0?1:-1];
+#include "f1tyres.h"
+extern struct gp2setupdata *pPlayerSetup;
 static unsigned long oldClock,oldStart,oldTrack;
 static int initialized,oldMode;
 static long remaining=-1;
@@ -21,7 +40,7 @@ void F1QualyUpdate(void)
     mode=*pSessionMode;
     if(mode&0x80) { initialized=0;F1QReset();return; }
     clock=*pCurTime;start=pSesStartTime?*pSesStartTime:0;track=pTrackNr?*pTrackNr:0;
-    if(!initialized || clock<oldClock || start!=oldStart || track!=oldTrack || mode!=oldMode) F1QReset();
+    if(!initialized || clock<oldClock || start!=oldStart || track!=oldTrack || mode!=oldMode) {F1QReset();F1QCombinedMode=0;}
     initialized=1;oldClock=clock;oldStart=start;oldTrack=track;oldMode=mode;
     memset(cars,0,sizeof(cars));memset(seen,0,sizeof(seen));n=0;
     entrants=pNumCars?*pNumCars:26;
@@ -40,6 +59,7 @@ void F1QualyUpdate(void)
     }
     for(i=0;i<n;i++) {
         id=cars[i].id;cars[i].pit=1;cars[i].split=2;
+        cars[i].compound=F1AssignedCompound(id,pCarSetups,(const GP2CSx *)pPlayerSetup);
         chosen=-1;bestScore=-1;
         for(j=0;j<m;j++) if((pCarStructs[j].id&0x3f)==id) {
             c=&pCarStructs[j];score=0;
@@ -51,7 +71,7 @@ void F1QualyUpdate(void)
         }
         if(chosen>=0) {
             j=chosen;
-            c=&pCarStructs[j];cars[i].active=1;cars[i].lap=c->lapNr;cars[i].split=c->splitNr;
+            c=&pCarStructs[j];cars[i].compound=F1AssignedCompound(c->id,pCarSetups,(const GP2CSx *)pPlayerSetup);cars[i].active=1;cars[i].lap=c->lapNr;cars[i].split=c->splitNr;
             cars[i].pit=(((unsigned char *)c)[0x16a]&8)!=0;cars[i].start=c->timeLapStart;
             cars[i].last=c->timeLast;cars[i].s1=c->timeLastSpl1;cars[i].s2=c->timeLastSpl2;
             cars[i].best=c->timeBest;cars[i].best1=c->timeBestSpl1;cars[i].best2=c->timeBestSpl2;
@@ -73,9 +93,13 @@ void F1QualyUpdate(void)
 }
 void F1QualyCompose(unsigned char *dst,const unsigned char *pal,int focus,int table,int card,int cockpit)
 {
-    int n;const F1QRow *rows;F1QCard detail;
+    int n;const F1QRow *rows;F1QCard detail;F1QRow combined[F1_Q_MAX];
     if(!pSessionMode || (*pSessionMode&0x80) || !pCurTime) return;
     rows=F1QRows(&n);
+    if(F1QCombinedMode && (*pSessionMode==0x40 || *pSessionMode==0x44)) {
+        F1CombinedBuild(combined,rows,n,GP2_QualTimesSes1?GP2_QualTimesSes1->car:NULL,
+            GP2_QualTimesSes2?GP2_QualTimesSes2->car:NULL,*pSessionMode);rows=combined;
+    }
     if(table) F1RenderQualy(dst,pal,rows,n,remaining,!(*pSessionMode&0x40),(*pCurTime%15000)<10000,cockpit,focus);
     if(card && F1QGetCard(focus,*pCurTime,&detail)) {
         F1RenderQualyCard(dst,pal,&detail,cockpit);F1AdvancedCard(dst,pal,focus,cockpit);

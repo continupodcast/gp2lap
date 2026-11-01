@@ -1,5 +1,6 @@
 #include "stdinc.h"
 #include "gp2lap.h"
+#include "gridcap.h"
 #include "gp2str.h"
 #include "gp2misc.h"
 #include "gp2glob.h"
@@ -944,9 +945,11 @@ static void LogSessionData(GP2LapRecSession *rec)
 
 
 // Start of session
+extern void F1PlayerStrategyReset(void);
 void __near SOSHook(void)
 {
 	GP2LapRecSession *rec = (GP2LapRecSession*) Log_GetRecBuf(GP2LRTYPE_SESSION);
+    F1PlayerStrategyReset();
     F1AccEvent("NEW_SESSION");
     F1RaceSession(1);
     F1QReset();
@@ -973,6 +976,7 @@ void __near SOSHook(void)
 void __near LOSHook(void)
 {
 	GP2LapRecSession *rec = (GP2LapRecSession*) Log_GetRecBuf(GP2LRTYPE_SESSION);
+    F1PlayerStrategyReset();
     F1AccEvent("LOAD_SESSION");
     F1RaceSession(0);
     F1QReset();
@@ -1099,9 +1103,14 @@ static void LogLapData(GP2LapRecLap *rec)
 
 
 // Start of lap (actually logged as a 'end of lap')
+extern void F1TyreNativeLap(GP2Car *c);
+extern void F1TyreNativePitLap(GP2Car *c);
+void __near TyrePitLapHook(void){F1TyreNativePitLap(pCurrentCS);}
+void (__near *fpTyrePitLapCode)(void)=TyrePitLapHook;
 void __near SOLHook(void)
 {
     F1AccEvent("LAP");
+    F1TyreNativeLap(pCurrentCS);
 	if (pCurrentCS && (opt_log_cc || GP2_CAR_ISPLAYER(pCurrentCS->id))) {
 		int w;
 		if (!*pIsReplay) {
@@ -1163,8 +1172,11 @@ void __near SOLHook(void)
 
 
 // Pit in (actually log a lap record with pit flag set)
+extern void F1PlayerPitEnter(GP2Car *c);
+extern void F1PlayerPitLeave(GP2Car *c);
 void __near PIHook(void)
 {
+    F1PlayerPitEnter(pCurrentCS);
 	if (pCurrentCS && (opt_log_cc || GP2_CAR_ISPLAYER(pCurrentCS->id)) && (*pSessionMode & 0x80)) {
 		if (!*pIsReplay) {
 			GP2LapRecLap *rec = (GP2LapRecLap*) Log_GetRecBuf(GP2LRTYPE_LAP);
@@ -1191,6 +1203,7 @@ void __near PIHook(void)
 // Pit out
 void __near POHook(void)
 {
+    F1PlayerPitLeave(pCurrentCS);
 	if (!*pIsReplay && pCurrentCS && (opt_log_cc || GP2_CAR_ISPLAYER(pCurrentCS->id)) && (*pSessionMode & 0x80)) {
 		GP2LapRecPitOut *rec = (GP2LapRecPitOut*) Log_GetRecBuf(GP2LRTYPE_PITOUT);
 		if (rec) {

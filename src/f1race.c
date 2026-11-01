@@ -1,5 +1,6 @@
 /* Session-local grid baseline and manual race tower pages. */
 #include <string.h>
+#include "f1features.h"
 #include "f1race.h"
 static int grid[41], pendingGrid, mode, tabDown;
 void F1RaceReset(int fresh)
@@ -32,7 +33,7 @@ void F1RaceKey(unsigned int scan,int enabled)
 {
     if(scan==0x8f) tabDown=0;
     else if(scan==0x0f) {
-        if(enabled && !tabDown) mode=(mode+1)%4;
+        if(enabled && !tabDown) mode=mode==2?(PerCarTyreCompounds?4:3):mode==4?3:mode==3?0:mode+1;
         tabDown=1;
     }
 }

@@ -7,12 +7,12 @@ static int gapDiagActive;
 static void GapDiagFlush(unsigned long clock)
 {
  FILE *f;
- if(gapDiagUsed){f=fopen("F1GAPS.LOG","ab");if(f){fwrite(gapDiagBuffer,1,gapDiagUsed,f);fclose(f);}gapDiagUsed=0;}
+ if(gapDiagUsed){f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;if(f){fwrite(gapDiagBuffer,1,gapDiagUsed,f);fclose(f);}gapDiagUsed=0;}
  gapDiagFlushAt=clock;
 }
 static void GapDiagBoot(void)
 {
- FILE *f=fopen("F1GAPS.LOG","wb");
+ FILE *f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;
  gapDiagUsed=0;gapDiagLines=0;gapDiagFlushAt=0;gapDiagActive=f!=NULL;
  if(f){fputs("F1 HUD 0.35 - early route hold; partial common-point means; millisecond precision\nchannel 0=preceding car, 1=leader; clocks/gaps in ms; key=(lap-1)*30+point; point 0=finish\nROUTE_HOLD=geometry unavailable before IN PIT; PIT_HOLD/PIT_REJOIN=pit continuity; PAIR_REBASE=new comparison; PUBLISH count=valid samples\nLimit: 100000 records. Pause before copying.\n",f);fclose(f);}
 }
@@ -25,7 +25,7 @@ static void GapDiagTrace(unsigned long clock,const char *format,...)
  if(gapDiagUsed+n>=sizeof(gapDiagBuffer))GapDiagFlush(clock);
  memcpy(gapDiagBuffer+gapDiagUsed,line,n);gapDiagUsed+=n;
  if(++gapDiagLines>=100000){GapDiagFlush(clock);gapDiagActive=0;
-  {FILE *f=fopen("F1GAPS.LOG","ab");if(f){fputs("DIAGNOSTIC_LIMIT_REACHED: capture stopped, gameplay unchanged\n",f);fclose(f);}}
+  {FILE *f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;if(f){fputs("DIAGNOSTIC_LIMIT_REACHED: capture stopped, gameplay unchanged\n",f);fclose(f);}}
  }
 }
 #define FI_TRACE GapDiagTrace

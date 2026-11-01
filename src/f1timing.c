@@ -5,7 +5,7 @@
 #include "f1splitcolor.h"
 typedef struct {
     int seen,lap,split,pit,outlap,active,postColor[3],liveColor[3],pole;
-    unsigned long start,postUntil,gapUntil;
+    unsigned long start,postUntil,gapUntil,improveUntil;
     long best,ref[3],pb[3],lapRef[3],live[3],postValue[3],last,gap;
     int hasGap,gapLeader;
     long gapReferenceBest;
@@ -82,6 +82,7 @@ void F1QTick(const F1QCar *cars,int count,unsigned long clock)
         }
         /* Best-lap times come from GP2's persistent tables, including cars in pits. */
         if(best && (!s->best || best<=s->best)) {
+            if(s->seen && (!s->best || best<s->best)) s->improveUntil=clock+3000;
             s->best=best;
             if(b1 && b2>b1 && best>b2) {
                 s->ref[0]=b1;s->ref[1]=b2-b1;s->ref[2]=best-b2;
@@ -104,7 +105,9 @@ void F1QTick(const F1QCar *cars,int count,unsigned long clock)
             }
         }
         s->seen=1;s->active=c->active;s->pit=c->pit;s->lap=c->lap;s->split=c->split;s->start=c->start;
+        rows[nrows].compound=c->compound;
         rows[nrows].id=id;rows[nrows].pit=c->pit;rows[nrows].outlap=s->outlap;
+        rows[nrows].improved=s->improveUntil>clock;
         rows[nrows].best=s->best;memcpy(rows[nrows].pb,s->pb,sizeof(s->pb));
         memcpy(rows[nrows].live,s->live,sizeof(rows[nrows].live));
         memcpy(rows[nrows].color,s->liveColor,sizeof(rows[nrows].color));nrows++;

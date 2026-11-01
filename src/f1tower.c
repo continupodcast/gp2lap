@@ -9,6 +9,34 @@
 #include "pages.h"
 #include "f1render.h"
 #include "f1tower.h"
+#include "f1tyres.h"
+#include "f1tyreage.h"
+extern struct gp2setupdata *pPlayerSetup;
+#include "f1compoundstate.h"
+#include "f1simulationmode.h"
+#include "f1tyretest.h"
+#include "f1tyrenativelaps.h"
+#include "f1tyrefuel.h"
+#include "f1strategytest.h"
+#include "f1autostrategy.h"
+#include "f1playerstrategy.h"
+#include "trackinf.h"
+#include "gp2str.h"
+#include "f1playerui.h"
+static void F1PlayerCircuitPrepare(void)
+{
+ static double xy[4096];int i,n=0;long slot=pTrackNr?*pTrackNr:-1;
+ Gp2InfoTags *tags=slot>=0 && slot<16?GetTrackTags((unsigned char)slot):NULL;
+ const char *name=tags && tags->name[0]?tags->name:slot>=0 && slot<16?GP2_GetTrackString(slot):"Circuit";
+ if(pTrackSegs && pNumTrackSegs && pNumTrackSegs[0]>=2 && pNumTrackSegs[0]<=2048){
+  n=pNumTrackSegs[0];for(i=0;i<n;i++){xy[2*i]=pTrackSegs[i].xPos;xy[2*i+1]=pTrackSegs[i].yPos;}
+ }
+ F1StrategyCircuitSet(name,xy,n);
+}
+#include "f1playermodal.h"
+#include "f1inlinepit.h"
+#include "f1strategyservice.h"
+extern void F1CompoundRaceSync(void);
 #include "f1qualy.h"
 #include "f1race.h"
 #include "f1pits.h"
@@ -23,10 +51,14 @@
 #include "svga/vesa.h"
 /* f1grid.inc retained for separate diagnostic builds. */
 extern unsigned short *GP2_LapsInThisRace;
+#include "f1camtest.h"
 /* Fail compilation if the memory layout used by this module changes. */
+typedef char F1CompoundOffsetCheck[offsetof(GP2CSx,compound)==8?1:-1];
 typedef char F1SizeCheck[sizeof(GP2Car)==0x330?1:-1];
 typedef char F1DistanceCheck[offsetof(GP2Car,field_9E)==0x9e?1:-1];
 typedef char F1IdCheck[offsetof(GP2Car,id)==0xa6?1:-1];
+typedef char F1PitDigitalCheck[offsetof(GP2Car,digCtrlInput)==0x7d?1:-1];
+typedef char F1PitConfirmCheck[offsetof(GP2Car,flags_169)==0x169?1:-1];
 typedef char F1StopsCheck[offsetof(GP2Car,numPitStopsDone)==0xd7?1:-1];
 typedef char F1TimeCheck[offsetof(GP2Car,timeLast)==0x2d4?1:-1];
 typedef char F1FuelCheck[offsetof(GP2Car,fuelLoad)==0x298?1:-1];
@@ -55,19 +87,22 @@ static char diagLast[220];
 static int diagBudget;
 static void F1DiagLog(const char *text)
 {
-    FILE *f=fopen("F1HUD.LOG","a");
+    FILE *f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;
     if(f) { fputs(text,f); fputc('\n',f); fclose(f); }
 }
 void F1DiagBoot(void)
 {
-    FILE *f=fopen("F1HUD.LOG","w");
+    FILE *f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;
     GapDiagBoot();
-    if(f) { fputs("F1 HUD 0.56 - modern panels / map cycle and zoom - booted\n",f); fclose(f); }
+    if(f) { fputs("F1 HUD 0.75 - modern panels / map cycle and zoom - booted\n",f); fclose(f); }
     /* Diagnostic builds alone create F1GRID.LOG. */
 }
+extern int F1GridProbeInit(void);
 void F1ControlInit(void)
 {
+    CamTestInit();
     F1ConfigEnsure();
+    F1DiagLog(F1GridProbeInit()?"GRID MENU D6: DRAW HOOK ACTIVE":"GRID MENU D6: SIGNATURE FAILED; ORIGINAL MENU");
     if(f1_allow_external_pit_camera)
         F1DiagLog(F1PitCameraProbeInit()?"PIT CAMERA: EXTERNAL VIEWS ENABLED FOR PLAYER AND AI":"PIT CAMERA: SIGNATURE FAILED; ORIGINAL RESTRICTIONS RETAINED");
     else F1DiagLog("PIT CAMERA: ORIGINAL RESTRICTIONS (AllowExternalPitCamera=0)");
@@ -226,11 +261,12 @@ void F1ToggleDriver(void)
 }
 void F1Tab(unsigned int scan)
 {
+    F1QualyTab(scan,(activepage&PAGE_F1TOWER)!=0);
     F1RaceKey(scan,(activepage&PAGE_F1TOWER) && pSessionMode && (*pSessionMode&0x80));
 }
 void F1RaceSession(int fresh)
 {
-    F1PitsReset();
+    F1PitsReset();F1TyreAgeReset();
     F1AdvancedReset();
     F1ControlCancel();
     F1Reset();F1RaceReset(fresh);
@@ -255,6 +291,17 @@ void F1Update(void)
 {
     int i,j,id,aheadId,focus,n,leaderId,fastestId; long dist,delta; unsigned long clock,start,track,time,best;
     GP2Car *c,*tmp; double microPosition;
+    F1StrategyFrameObserve();
+    CamTestUpdate();
+    if(!pIsReplay || !*pIsReplay)F1CompoundRaceSync();
+    F1StrategyServiceInit();
+    F1InlinePitInit();
+    F1AutoStrategyTick();
+    F1PlayerStrategyTick();
+    F1InlinePitTick();
+    F1StrategyTestTick();
+    F1TyreFuelTick();
+    F1TyreTestTick();
     F1PitCameraSample();
     F1ReplayObserve();
     diagFrames++;
@@ -267,10 +314,10 @@ void F1Update(void)
     if(clock<gapDiagFlushAt || clock-gapDiagFlushAt>=1000 || (pPaused && *pPaused))GapDiagFlush(clock);
     if(validClock && track!=trackSlot) F1RaceReset(0);
     if(!(pIsReplay && *pIsReplay) && validClock && (clock<lastClock || start!=sessionStart || track!=trackSlot)) {
-        GapDiagTrace(clock,"GLOBAL_SESSION_RESET previous_clock=%lu start=%lu/%lu track=%lu/%lu",lastClock,sessionStart,start,trackSlot,track);
-        F1PitsReset();F1Reset();
+        ((void)0);
+        F1PitsReset();F1TyreAgeReset();F1Reset();
     }
-    if(pIsReplay && *pIsReplay){if(count && fiCars[rows[0].id].seen)GapDiagTrace(clock,"REPLAY_RESET");FIReset();GapDiagFlush(clock);return;}
+    if(pIsReplay && *pIsReplay){if(count && fiCars[rows[0].id].seen)((void)0);FIReset();GapDiagFlush(clock);return;}
     if(pNumCars && *pNumCars>=1 && *pNumCars<=26) {
         for(i=0;i<*pNumCars;i++) {
             c=&pCarStructs[i];id=c->id&63;
@@ -279,7 +326,7 @@ void F1Update(void)
     }
     lastClock=clock; sessionStart=start; trackSlot=track;
     if(validClock && clock-lastTick<100) return;
-    if(validClock && clock-lastTick>500){GapDiagTrace(clock,"GLOBAL_SAMPLE_TIMEOUT previous_tick=%lu dt=%lu",lastTick,clock-lastTick);FIReset();}
+    if(validClock && clock-lastTick>500){((void)0);FIReset();}
     validClock=1; lastTick=clock;
     n=pNumCars?(int)*pNumCars:26; if(n<1 || n>26) { count=0; return; }
     count=0;
@@ -290,9 +337,9 @@ void F1Update(void)
         c=ordered[i];id=c->id&63;
         microPosition=F1TrackMicroPosition((unsigned long)c->pSeg,c->segDistFactor);
         if(c->segDistFactor>16384 && microPosition>=0)
-            GapDiagTrace(clock,"NORMALIZED id=%d lap=%u factor=%u signed=%ld micro=%.6f",id,(unsigned)c->lapNr,(unsigned)c->segDistFactor,c->segDistFactor>=32768?(long)c->segDistFactor-65536:(long)c->segDistFactor,microPosition);
+            ((void)0);
         if(microPosition<1 || microPosition>29 || (fiCars[id].seen && ((c->lapNr-1)*30.0+microPosition<fiCars[id].progress || (c->lapNr-1)*30.0+microPosition-fiCars[id].progress>3 || (c->flags_16A&8) || (c->flags_90&32))))
-            GapDiagTrace(clock,"RAW id=%d lap=%u micro=%.6f prev=%.6f seen=%d segment=%lu base=%lu factor=%u distance=%lu rank=%u flags16A=%u flags90=%u flags5E=%u",id,(unsigned)c->lapNr,microPosition,fiCars[id].progress,fiCars[id].seen,(unsigned long)c->pSeg,(unsigned long)pTrackSegs,(unsigned)c->segDistFactor,(unsigned long)c->field_9E,(unsigned)c->racePos,(unsigned)c->flags_16A,(unsigned)c->flags_90,(unsigned)c->flags_5E);
+            ((void)0);
         FIPitSample(id,c->lapNr,microPosition,clock,
             !((c->flags_90&32) && !(c->flags_5E&1)),(c->flags_16A&8)!=0);
     }
@@ -315,6 +362,7 @@ void F1Update(void)
     else if(best && (!fastBest || best<fastBest)) { fastBest=best; fastId=fastestId; fastAt=clock; fastShow=1; }
     for(i=0;i<count;i++) {
         c=ordered[i]; id=c->id&0x3f;
+        rows[i].compound=F1AssignedCompound(c->id,pCarSetups,(const GP2CSx *)pPlayerSetup);
         rows[i].id=id; rows[i].pos=i+1; rows[i].lap=c->lapNr; rows[i].focused=id==focus;
         /* GP2Lap's own retirement/pit predicates, rather than a wall-clock timeout. */
         rows[i].out=(c->flags_90&0x20) && !(c->flags_5E&1);
@@ -330,6 +378,7 @@ void F1Update(void)
                 F1DiagLog(msg);
             }
         }
+        rows[i].tyreLaps=PerCarTyreCompounds?F1TyreAgeTick(id,c->lapNr,rows[i].stops):-1;
         rows[i].gap=-1;
         rows[i].leaderGap=i?-1:0;rows[i].lapsBehind=0;
         rows[i].fastest=id==fastestId;
@@ -390,11 +439,12 @@ void F1Compose(unsigned char *dst)
     if(!pUseSVGA || !*pUseSVGA) return;
     if(fuelNotice[0] && (!pCurTime || *pCurTime<fuelNoticeAt || *pCurTime-fuelNoticeAt>=3000)) fuelNotice[0]=0;
     if(pitNotice[0] && (!pCurTime || *pCurTime<pitNoticeAt || *pCurTime-pitNoticeAt>=2500))pitNotice[0]=0;
-    if(!(activepage&PAGE_F1HUD) && !fuelNotice[0] && !pitNotice[0]) return;
+    if(!(activepage&PAGE_F1HUD) && !fuelNotice[0] && !pitNotice[0] && !camNotice[0]) return;
     pal=IDACodeReftoDataRef(0x7f624); /* same palette reference as GP2Lap screenshot code */
     if(!pal) return;
     if(fuelNotice[0]) F1RenderNotice(dst,pal,fuelNotice);
     if(pitNotice[0]) F1RenderNotice(dst,pal,pitNotice);
+    if(camNotice[0]) F1RenderNotice(dst,pal,camNotice);
     if(!(activepage&PAGE_F1HUD)) return;
     if(F1CockpitView && ppCockpitCS && *ppCockpitCS) focus=(*ppCockpitCS)->id&0x3f;
     else if(ppSelectedCS && *ppSelectedCS) focus=(*ppSelectedCS)->id&0x3f;

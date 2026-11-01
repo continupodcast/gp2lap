@@ -1,7 +1,9 @@
+#include "f1features.h"
 #ifndef F1QUALY_H
 #define F1QUALY_H
 #define F1_Q_MAX 28
 #define F1_Q_W 116
+#define F1_Q_TOTAL_W (F1_Q_W+F1_TYRE_EXTRA)
 #define F1_Q_HEADER 36
 #define F1_CARD_X ((640-F1_CARD_W)/2)
 #define F1_CARD_Y_TV 302
@@ -13,11 +15,11 @@
 #define F1_CARD_COMPACT_X ((640-F1_CARD_COMPACT_W)/2)
 /* Time zero is unavailable. Input times retain GP2 validity bits. */
 typedef struct {
-    int id,active,lap,split,pit;
+    int id,active,lap,split,pit,compound;
     unsigned long start,best,best1,best2,last,s1,s2;
 } F1QCar;
 typedef struct {
-    int id,pos,pit,outlap;
+    int id,pos,pit,outlap,improved,compound;
     long best,pb[3],live[2];
     int color[2];
 } F1QRow;
@@ -27,6 +29,8 @@ typedef struct {
     int color[3];
 } F1QCard;
 /* 0 empty, 1 personal improvement, 2 slower, 3 overall best */
+extern int F1QCombinedMode;
+void F1QualyTab(unsigned int scan,int active);
 void F1QReset(void);
 void F1QTick(const F1QCar *cars,int count,unsigned long clock);
 const F1QRow *F1QRows(int *count);

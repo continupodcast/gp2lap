@@ -22,7 +22,7 @@ static unsigned long resetCount;
 static const char *sampleStatus="NOT UPDATED";
 static void logstate(const char *s)
 {
-    FILE *f=fopen("F1HUD.LOG","a");if(f) {fputs(s,f);fputc('\n',f);fclose(f);}
+    FILE *f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;if(f) {fputs(s,f);fputc('\n',f);fclose(f);}
 }
 /* Diagnostic state is separate from timing state: observing a sample must not
    change its acceptance, continuity, reference times or displayed colours. */
@@ -73,7 +73,7 @@ static void tracedSample(int id,int lap,double position,unsigned long clock,int 
 static void reportCars(void)
 {
     int id,i,n;FILE *f;MicroDiag *d;MicroBreak *b;F1MicroCar *c;
-    f=fopen("F1HUD.LOG","a");if(!f) return;
+    f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;if(!f) return;
     for(id=1;id<=40;id++) {
         d=&microDiag[id];if(!d->touched) continue;c=&micro.cars[id];n=0;
         for(i=0;i<30;i++) if(c->colors[i]) n++;
@@ -97,7 +97,7 @@ static void reportCars(void)
 void F1AccEvent(const char *event) { (void)event; }
 void F1AdvancedReport(void)
 {
-    reportClock=0;reports=0;diagArmed=1;memset(microDiag,0,sizeof(microDiag));
+    reportClock=0;reports=0;diagArmed=0;memset(microDiag,0,sizeof(microDiag));
     logstate("MICRO DIAGNOSTIC 0.22: PER-CAR CAPTURE ARMED FOR TWELVE MINUTES; COUNTS CUMULATIVE");
 }
 void F1AdvancedSuspend(void)
