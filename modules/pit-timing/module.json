@@ -1,0 +1,8 @@
+{
+  "requires": [],
+  "description": "Live pit-signal cards",
+  "id": "pit-timing",
+  "entry_sources": [
+    "f1render_F1RenderPitDisplays.inc"
+  ]
+}
