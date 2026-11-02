@@ -1,0 +1,11 @@
+{
+  "requires": [],
+  "description": "Enhanced cameras and external pit-camera access",
+  "id": "camera-controls",
+  "entry_sources": [
+    "f1camtest_CamTestInit.inc",
+    "f1camtest_CamTestUpdate.inc",
+    "f1camtest_F1CameraTestKey.inc",
+    "f1pitcamera_F1PitCameraProbeInit.inc"
+  ]
+}
