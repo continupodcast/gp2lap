@@ -1,0 +1,14 @@
+{
+  "requires": [
+    "race-strategy-engine"
+  ],
+  "description": "Editable pre-race player strategy and player service tracking",
+  "id": "player-race-strategy",
+  "entry_sources": [
+    "f1playermodal_F1PlayerStrategyChoose.inc",
+    "f1playerstrategy_F1PlayerPitEnter.inc",
+    "f1playerstrategy_F1PlayerPitLeave.inc",
+    "f1playerstrategy_F1PlayerStrategyService.inc",
+    "f1playerstrategy_F1PlayerStrategyTick.inc"
+  ]
+}
