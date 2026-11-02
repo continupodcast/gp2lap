@@ -1,3 +1,4 @@
+#include "f1modules.h"
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
@@ -86,16 +87,11 @@ void F1RenderNotice(unsigned char *dst,const unsigned char *pal,const char *mess
 }
 void F1RenderMicro(unsigned char *dst,const unsigned char *pal,const unsigned char *colors,int cockpit)
 {
-    int s,i,x,y,col,step=cockpit?9:6,width=cockpit?86:62;
-    int left=cockpit?F1_CARD_COMPACT_X:F1_CARD_X;
-    int top=(cockpit?F1_CARD_Y_COCKPIT:F1_CARD_Y_TV)+(cockpit?43:77);
-    palette(pal);
-    for(s=0;s<3;s++) {
-        for(i=0;i<width;i++) for(y=top;y<top+3;y++) {
-            col=i<step*10 && i%step<step-1?sectorcol[colors[s*10+i/step]<=3?colors[s*10+i/step]:0]:badgeBlack;
-            x=left+8+s*(cockpit?90:66)+i;dst[y*640+x]=(unsigned char)col;
-        }
-    }
+#if F1_MODULE_SECTORS
+#include "../modules/sectors/f1render_F1RenderMicro.inc"
+#else
+
+#endif
 }
 /* Keep exactly the two immediate neighbours on either side, where present. */
 int F1Window(const F1Row *rows,int count,int focusId,int *start)
@@ -142,62 +138,11 @@ static void badge(unsigned char *dst,int x,int y,int fastest)
 }
 void F1RenderRace(unsigned char *dst,const unsigned char *pal,const F1Row *rows,int count,int lap,int total,int mode)
 {
-    int i,j,x,y,team,di,bottom,col; const F1Row *row; char label[40];
-    if(!dst || !pal || !rows || count<1) return;
-    if(count>F1_MAX_ROWS) count=F1_MAX_ROWS;
-    if(f1_theme==F1_THEME_90S) { F1RenderRace90(dst,pal,rows,count,lap,total,mode); return; }
-    clipRight=F1_PANEL_X+F1_RACE_W;
-    palette(pal); bottom=F1_PANEL_Y+F1_HEADER_H+count*F1_ROW_H+3;
-    for(y=F1_PANEL_Y;y<bottom;y++) for(x=F1_PANEL_X;x<F1_PANEL_X+F1_RACE_W;x++) dst[y*640+x]=dark[dst[y*640+x]];
-    strcpy(label,mode==4?"TYRE AGE":mode==1?"POS +/-":mode==2?"PITS":mode==3?"LEADER GAP":"RACE");
-    text(dst,F1_PANEL_X+(F1_RACE_W-textwidth(label,3))/2,F1_PANEL_Y+2,label,3,-1,0);
-    if(total>0) sprintf(label,"LAP %d / %d",lap,total); else sprintf(label,"LAP %d",lap);
-    text(dst,F1_PANEL_X+(F1_RACE_W-textwidth(label,1))/2,F1_PANEL_Y+20,label,1,-1,0);
-    for(i=0;i<count;i++) {
-        row=&rows[i]; y=F1_PANEL_Y+F1_HEADER_H+i*F1_ROW_H;
-        di=-1; for(j=0;j<F1_DRIVER_COUNT;j++) if(f1_drivers[j].id==row->id) { di=j; break; }
-        team=di<0?-1:f1_drivers[di].team;
-        if(row->focused) for(j=0;j<F1_ROW_H-1;j++) {
-            dst[(y+j)*640+F1_PANEL_X]=team<0?white[3][0]:teamcol[team];
-            dst[(y+j)*640+F1_PANEL_X+1]=team<0?white[3][0]:teamcol[team];
-        }
-        if(row->positionChange) {
-            col=row->positionChange>0?sectorcol[1]:losscol;
-            for(j=0;j<4;j++)for(x=-j;x<=j;x++)
-                dst[(y+3+(row->positionChange>0?j:3-j))*640+F1_PANEL_X+10+x]=col;
-        } else {
-            sprintf(label,"%d",row->pos); text(dst,F1_PANEL_X+5,y,label,2,-1,row->out);
-        }
-        if(team>=0) {
-            if(f1_team_logo_enabled[team]) {
-                for(j=0;j<192;j++) if(TEAM_LOGO(team)[j][3]>=128)
-                    dst[(y+j/16)*640+F1_PANEL_X+18+j%16]=row->out?dark[logocol[team][j]]:logocol[team][j];
-            } else for(j=0;j<192;j++) dst[(y+j/16)*640+F1_PANEL_X+18+j%16]=row->out?dark[teamcol[team]]:teamcol[team];
-        }
-        text(dst,F1_PANEL_X+35,y,di<0?"???":f1_drivers[di].abbr,0,-1,row->out);
-        col=-1;
-        if(mode==1) {
-            if(row->gain==F1_GAIN_UNKNOWN) strcpy(label,"-");
-            else if(!row->gain) strcpy(label,"-");
-            else { sprintf(label,"%+d",row->gain);col=row->gain>0?sectorcol[1]:losscol; }
-        } else if(mode==2) sprintf(label,"%d",row->stops);
-        else if(mode==4){if(row->tyreLaps<0)strcpy(label,"-");else sprintf(label,"%d",row->tyreLaps);}
-        else if(row->out) strcpy(label,"OUT");
-        else if(row->pit) strcpy(label,"IN PIT");
-        else if(row->pos==1) strcpy(label,mode==3?"Leader":"Interval");
-        else if(mode==3 && row->lapsBehind>0) sprintf(label,"+%dL",row->lapsBehind);
-        else if(mode==3) F1Gap(label,row->leaderGap);
-        else F1Gap(label,row->gap);
-        if(!mode && !row->out && (row->pit || row->pos==1) && team>=0) col=teamcol[team];
-        text(dst,F1_PANEL_X+F1_PANEL_W-3-textwidth(label,1),y+1,label,1,col,mode?0:row->out);
-        if(PerCarTyreCompounds){
-        label[0]=row->compound>=0 && row->compound<4?"HMSS"[row->compound]:'?';label[1]=0;
-        text(dst,F1_PANEL_X+F1_PANEL_W+4,y+1,label,1,row->compound>=0 && row->compound<4?tyrecol[row->compound]:-1,row->out);
-        text(dst,F1_PANEL_X+F1_PANEL_W+5,y+1,label,1,row->compound>=0 && row->compound<4?tyrecol[row->compound]:-1,row->out);
-        }
-        if(row->finished) finishBadge(dst,F1_PANEL_X+F1_RACE_W+1,y);
-        else if(row->fastest) badge(dst,F1_PANEL_X+F1_RACE_W+1,y,1);
-    }
+#if F1_MODULE_TIMING_TOWER
+#include "../modules/timing-tower/f1render_F1RenderRace.inc"
+#else
+
+#endif
 }
 
 static int driver(int id)
@@ -290,144 +235,28 @@ void F1RenderDriverAt(unsigned char *dst,const unsigned char *pal,int id,int pos
 }
 void F1RenderDriverAtXY(unsigned char *dst,const unsigned char *pal,int id,int position,int x,int y)
 {
-    int di,team,xx,yy,k,lx,j,best,a,dx,dy;
-    char label[20];const F1Driver *d;
-    if(!dst || !pal || id<1 || id>40 || y<0 || y>480-F1_DRIVER_H || x<0 || x>640-F1_DRIVER_W) return;
-    di=driver(id);if(di<0) return;d=&f1_drivers[di];team=d->team;
-    if(f1_theme==F1_THEME_90S) { F1RenderDriver90(dst,pal,id,position,x,y); return; }
-    palette(pal);clipRight=x+F1_DRIVER_W;
-    background(dst,x,y,F1_DRIVER_W,F1_DRIVER_H);
-    for(yy=0;yy<F1_DRIVER_H;yy++) for(xx=0;xx<F1_DRIVER_W;xx++) {
-        k=xx+yy/2;
-        if(xx>=145) dst[(y+yy)*640+x+xx]=platecol[team][2];
-        else if((k>=96 && k<108) || (k>=117 && k<126))
-            dst[(y+yy)*640+x+xx]=platecol[team][1];
-    }
-    if(position>0) sprintf(label,"%d",position);else strcpy(label,"-");
-    centeredNumber(dst,x+2,y,30,38,label,2,-1);
-    clipRight=x+143;
-    text(dst,x+38,y+2,d->first,5,-1,0);
-    driverSurname(dst,x+38,y+10,d->last,teamcol[team]);
-    text(dst,x+38,y+26,f1_team_names[team],5,-1,0);
-    lx=x+38+textwidth(f1_team_names[team],5)+3;
-    if(lx+8<=x+143 && !f1_team_logo_enabled[team]) for(yy=0;yy<6;yy++) for(xx=0;xx<8;xx++) dst[(y+27+yy)*640+lx+xx]=teamcol[team];
-    else if(lx+8<=x+143) for(yy=0;yy<6;yy++) for(xx=0;xx<8;xx++) {
-        best=-1;a=0;
-        for(dy=0;dy<2;dy++) for(dx=0;dx<2;dx++) {
-            j=(yy*2+dy)*16+xx*2+dx;
-            if(TEAM_LOGO(team)[j][3]>a) {a=TEAM_LOGO(team)[j][3];best=j;}
-        }
-        if(a>=128) dst[(y+27+yy)*640+lx+xx]=logocol[team][best];
-    }
-    sprintf(label,"%d",d->number);
-    centeredNumber(dst,x+145,y,55,38,label,2,teamcol[team]);
+#if F1_MODULE_DRIVER_PANELS
+#include "../modules/driver-panels/f1render_F1RenderDriverAtXY.inc"
+#else
+
+#endif
 }
 void F1RenderQualy(unsigned char *dst,const unsigned char *pal,const F1QRow *rows,
                    int count,long remaining,int practice,int gaps,int compact,int focus)
 {
-    int i,y,di,team,start=0,n,col,font;long leader;char label[40];const F1QRow *r;
-    if(!dst || !pal || !rows || count<1) return;
-    if(count>F1_Q_MAX) count=F1_Q_MAX;
-    leader=rows[0].best;
-    if(f1_theme==F1_THEME_90S) { F1RenderQualy90(dst,pal,rows,count,remaining,practice,gaps,compact,focus); return; }
-    n=compact?F1QWindow(rows,count,focus,&start):count;
-    if(!n) return;
-    palette(pal);clipRight=F1_PANEL_X+F1_Q_TOTAL_W;
-    background(dst,F1_PANEL_X,F1_PANEL_Y,F1_Q_TOTAL_W,F1_Q_HEADER+n*F1_ROW_H+3);
-    text(dst,F1_PANEL_X+5,F1_PANEL_Y+2,practice?"PRACTICE":"QUALY",practice?0:3,-1,0);
-    if(remaining>=0) {
-        sprintf(label,"%ld:%02ld",remaining/60000,(remaining/1000)%60);
-        text(dst,F1_PANEL_X+F1_Q_W-3-textwidth(label,1),F1_PANEL_Y+3,label,1,remaining<120000?sectorcol[2]:-1,0);
-    }
-    text(dst,F1_PANEL_X+F1_Q_W-3-textwidth((F1QCombinedMode?"COMBINED":"BEST / GAP"),1),F1_PANEL_Y+21,(F1QCombinedMode?"COMBINED":"BEST / GAP"),1,-1,0);
-    for(i=0;i<n;i++) {
-        r=&rows[start+i];y=F1_PANEL_Y+F1_Q_HEADER+i*F1_ROW_H;di=driver(r->id);team=di<0?-1:f1_drivers[di].team;
-        col=r->improved?sectorcol[1]:-1;
-        if(compact && r->id==focus) bar(dst,F1_PANEL_X,y,2,F1_ROW_H-1,team<0?sectorcol[1]:teamcol[team]);
-        if(r->best) sprintf(label,"%d",r->pos);else strcpy(label,"-");
-        clipRight=F1_PANEL_X+18;text(dst,F1_PANEL_X+5,y,label,2,col,0);
-        logo(dst,F1_PANEL_X+18,y,team);
-        clipRight=F1_PANEL_X+62;text(dst,F1_PANEL_X+35,y,di<0?"???":f1_drivers[di].abbr,0,col,0);
-        if(!r->best) strcpy(label,"NO TIME");
-        else if(gaps && r->pos>1 && leader) F1QDelta(label,r->best-leader);
-        else F1QTime(label,r->best,0);
-        font=r->best?1:5;
-        clipRight=F1_PANEL_X+F1_Q_W-3;text(dst,clipRight-textwidth(label,font),y+(r->best?1:3),label,font,col,0);
-        if(PerCarTyreCompounds){
-        label[0]=r->compound>=0 && r->compound<4?"HMSS"[r->compound]:'?';label[1]=0;
-        clipRight=F1_PANEL_X+F1_Q_TOTAL_W;
-        text(dst,F1_PANEL_X+F1_Q_W+4,y+1,label,1,r->compound>=0 && r->compound<4?tyrecol[r->compound]:-1,0);
-        text(dst,F1_PANEL_X+F1_Q_W+5,y+1,label,1,r->compound>=0 && r->compound<4?tyrecol[r->compound]:-1,0);
-        }
-        clipRight=F1_PANEL_X+F1_Q_TOTAL_W;
-        if(r->pit) badge(dst,F1_PANEL_X+F1_Q_TOTAL_W+1,y,0);
-    }
+#if F1_MODULE_TIMING_TOWER
+#include "../modules/timing-tower/f1render_F1RenderQualy.inc"
+#else
+
+#endif
 }
 void F1RenderQualyCard(unsigned char *dst,const unsigned char *pal,const F1QCard *c,int cockpit)
 {
-    int di,team,i,x,y,font;char label[40];const char *name;
-    if(!dst || !pal || !c || !c->id) return;
-    if(f1_theme==F1_THEME_90S) { F1RenderQualyCard90(dst,pal,c,cockpit); return; }
-    if(cockpit) {
-        palette(pal);x=F1_CARD_COMPACT_X;y=F1_CARD_Y_COCKPIT;
-        di=driver(c->id);team=di<0?-1:f1_drivers[di].team;
-        clipRight=x+F1_CARD_COMPACT_W;background(dst,x,y,F1_CARD_COMPACT_W,F1_CARD_COMPACT_H);
-        bar(dst,x,y,26,23,badgeBlack);
-        if(c->pos) sprintf(label,"%d",c->pos);else strcpy(label,"-");
-        text(dst,x+4,y+3,label,3,-1,0);
-        text(dst,x+30,y+3,di<0?"???":f1_drivers[di].abbr,3,-1,0);
-        logo(dst,x+82,y+4,team);
-        if(c->pit) strcpy(label,"IN PIT");
-        else if(c->outlap) strcpy(label,"OUT LAP");
-        else if(c->post) F1QTime(label,c->last,0);
-        else if(c->showGap) F1QDelta(label,c->gap);
-        else F1QLiveTime(label,c->running);
-        clipRight=x+196;text(dst,x+104,y+5,label,3,c->showGap?sectorcol[c->gap<=0?1:2]:-1,0);
-        clipRight=x+F1_CARD_COMPACT_W-4;
-        di=driver(c->leaderId);name=di<0?"???":f1_drivers[di].last;
-        text(dst,x+199,y+2,name,1,-1,0);
-        if(c->pole) strcpy(label,"POLE");
-        else if(c->post && c->hasGap) F1QDelta(label,c->gap);
-        else F1QTime(label,c->leaderBest,0);
-        text(dst,x+199,y+13,label,1,c->pole?sectorcol[3]:-1,0);
-        clipRight=x+F1_CARD_COMPACT_W;
-        bar(dst,x,y+24,F1_CARD_COMPACT_W,2,team<0?sectorcol[0]:teamcol[team]);
-        for(i=0;i<3;i++) {
-            sprintf(label,"S%d",i+1);text(dst,x+8+i*90+34,y+29,label,0,sectorcol[c->color[i]],0);
-            bar(dst,x+8+i*90,y+43,86,3,sectorcol[c->color[i]]);
-        }
-        return;
-    }
-    palette(pal);x=F1_CARD_X;y=cockpit?F1_CARD_Y_COCKPIT:F1_CARD_Y_TV;clipRight=x+F1_CARD_W;
-    di=driver(c->id);team=di<0?-1:f1_drivers[di].team;
-    background(dst,x,y,F1_CARD_W,F1_CARD_H);
-    bar(dst,x,y,26,22,nearest(pal,0,0,0));
-    if(c->pos) sprintf(label,"%d",c->pos);else strcpy(label,"-");
-    text(dst,x+4,y+3,label,3,-1,0);
-    name=di<0?"UNKNOWN":f1_drivers[di].last;font=textwidth(name,3)>151?0:3;
-    clipRight=x+F1_CARD_W-27;text(dst,x+30,y+3,name,font,-1,0);
-    logo(dst,x+F1_CARD_W-22,y+4,team);clipRight=x+F1_CARD_W;
-    bar(dst,x,y+23,F1_CARD_W,2,team<0?sectorcol[0]:teamcol[team]);
-    if(c->pit) strcpy(label,"IN PIT");
-    else if(c->outlap) strcpy(label,"OUT LAP");
-    else if(c->post) F1QTime(label,c->last,0);
-    else if(c->showGap) F1QDelta(label,c->gap);
-    else F1QLiveTime(label,c->running);
-    clipRight=x+107;text(dst,x+8,y+34,label,3,c->showGap?sectorcol[c->gap<=0?1:2]:-1,0);
-    clipRight=x+F1_CARD_W-6;
-    if(c->pole) strcpy(label,"POLE");
-    else if(c->post && c->hasGap) F1QDelta(label,c->gap);
-    else F1QTime(label,c->leaderBest,0);
-    text(dst,x+112,y+32,label,0,c->pole?sectorcol[3]:-1,0);
-    if(!c->pole && c->leaderId) {
-        di=driver(c->leaderId);text(dst,x+112,y+47,di<0?"???":f1_drivers[di].last,1,-1,0);
-    }
-    clipRight=x+F1_CARD_W;
-    for(i=0;i<3;i++) {
-        sprintf(label,"S%d",i+1);
-        text(dst,x+8+i*66+24,y+61,label,0,sectorcol[c->color[i]],0);
-        bar(dst,x+8+i*66,y+77,62,3,sectorcol[c->color[i]]);
-    }
+#if F1_MODULE_SECTORS
+#include "../modules/sectors/f1render_F1RenderQualyCard.inc"
+#else
+
+#endif
 }
 
 /* Rotating, transparent local map. Road segments are clipped independently:
@@ -568,126 +397,22 @@ static void mapCar(const F1MapCar *car,const F1MapCar *focus,double co,double si
 void F1RenderMap(unsigned char *dst,const unsigned char *pal,const F1MapPoint *track,int count,
     const F1MapPoint *pits,int pitcount,const F1MapCar *cars,int n,int focusId)
 {
-    int i,j,fi=-1,x,y,road,edge,pit,gold;double co,si,ax,ay,bx,by;const F1MapCar *focus;
-    /* 'focused' index and pointer are kept separate for old Watcom C. */
-    if(!dst || !pal || !track || !cars || count<2 || count>2048 || n<1 || n>26 || pitcount<0 || pitcount>512) return;
-    for(i=0;i<n;i++) if(cars[i].id==focusId) fi=i;
-    if(fi<0) return;
-    focus=&cars[fi];
-    fullMapDrawing=0;
-    palette(pal);clipRight=F1_MAP_X+140;
-    road=nearest(pal,48,56,65);edge=nearest(pal,74,83,92);pit=nearest(pal,34,34,34);gold=nearest(pal,110,84,30);
-    co=cos(3.141592653589793-focus->angle);si=sin(3.141592653589793-focus->angle);
-    for(y=F1_MAP_Y;y<F1_MAP_Y+140;y++) memcpy(mapImage+y*640+F1_MAP_X,dst+y*640+F1_MAP_X,140);
-    for(j=0;j<2;j++) for(i=0;i<count;i++) {
-        mapPoint(track[i].x,track[i].y,focus,co,si,&ax,&ay);
-        mapPoint(track[(i+1)%count].x,track[(i+1)%count].y,focus,co,si,&bx,&by);
-        mapRoad(ax,ay,bx,by,j?1:16,j?edge:road,0);
-    }
-    if(pits) for(i=1;i<pitcount;i++) {
-        mapPoint(pits[i-1].x,pits[i-1].y,focus,co,si,&ax,&ay);
-        mapPoint(pits[i].x,pits[i].y,focus,co,si,&bx,&by);
-        mapRoad(ax,ay,bx,by,4,pit,gold);
-    }
-    for(i=0;i<n;i++) if(i!=fi && !cars[i].out) mapCar(&cars[i],focus,co,si,0);
-    mapCar(focus,focus,co,si,1);
-    for(y=F1_MAP_Y;y<F1_MAP_Y+140;y++) for(x=F1_MAP_X;x<F1_MAP_X+140;x++) {
-        int dx=x-(F1_MAP_X+70),dy=y-(F1_MAP_Y+70);
-        if(dx*dx+dy*dy<=68*68) dst[y*640+x]=mapImage[y*640+x];
-    }
+#if F1_MODULE_CIRCUIT_MAPS
+#include "../modules/circuit-maps/f1render_F1RenderMap.inc"
+#else
+
+#endif
 }
 
 /* Fixed orientation and aspect ratio; only team-coloured dots, no labels. */
 void F1RenderFullMap(unsigned char *dst,const unsigned char *pal,const F1MapPoint *track,int count,
     const F1MapPoint *pits,int pitcount,const F1MapCar *cars,int n,int focusId)
 {
-    double minx,maxx,miny,maxy,scale,span,ox,oy,ax,ay;
-    double focusX=0,focusY=0,bestDistance=-1;
-    int i,j,k,x,y,di,col,hit,focusIndex=-1,order[26],px[26],py[26];
-    if(!dst || !pal || !track || !cars || count<2 || count>2048 || n<1 || n>26 || pitcount<0 || pitcount>512) return;
-    /* Keep the selected marker on the map centreline, avoiding lateral
-       movement from the car's physical position and chassis motion. */
-    for(i=0;i<n;i++) if(cars[i].id==focusId) {focusIndex=i;break;}
-    if(focusIndex>=0) {
-        focusX=cars[focusIndex].x;focusY=cars[focusIndex].y;
-        for(i=0;i<count+(pits && pitcount>1?pitcount-1:0);i++) {
-            double dx,dy,length,t,qx,qy,distance;
-            const F1MapPoint *a,*b;
-            if(i<count) {a=&track[i];b=&track[(i+1)%count];}
-            else {if(!pits)break;a=&pits[i-count];b=a+1;}
-            dx=b->x-a->x;dy=b->y-a->y;length=dx*dx+dy*dy;
-            if(length<=0)continue;
-            t=((cars[focusIndex].x-a->x)*dx+(cars[focusIndex].y-a->y)*dy)/length;
-            if(t<0)t=0;
-            if(t>1)t=1;
-            qx=a->x+t*dx;qy=a->y+t*dy;
-            dx=cars[focusIndex].x-qx;dy=cars[focusIndex].y-qy;distance=dx*dx+dy*dy;
-            if(bestDistance<0 || distance<bestDistance) {bestDistance=distance;focusX=qx;focusY=qy;}
-        }
-    }
-    hit=!mapZoom && fullMapValid && count==fullMapCount && pitcount==fullMapPitCount &&
-        (pits!=NULL)==fullMapHasPits && !memcmp(fullMapPal,pal,768) &&
-        !memcmp(fullMapTrack,track,count*sizeof(*track)) &&
-        (!pits || !memcmp(fullMapPits,pits,pitcount*sizeof(*pits)));
-    if(hit) {scale=fullMapScale;ox=fullMapOx;oy=fullMapOy;}
-    else {
-    minx=maxx=track[0].x; miny=maxy=track[0].y;
-    for(i=0;i<count+pitcount;i++) {
-        if(i>=count && !pits) break;
-        ax=i<count?track[i].x:pits[i-count].x; ay=i<count?track[i].y:pits[i-count].y;
-        if(ax<minx) minx=ax;
-        if(ax>maxx) maxx=ax;
-        if(ay<miny) miny=ay;
-        if(ay>maxy) maxy=ay;
-    }
-    span=maxx-minx; if(maxy-miny>span) span=maxy-miny;
-    if(span<=0) return;
-    scale=112.0/span*mapZoomScale[mapZoom];
-    ax=(maxx+minx)/2;ay=(maxy+miny)/2;
-    if(mapZoom && focusIndex>=0) {ax=focusX;ay=focusY;}
-    ox=F1_MAP_X+70+ax*scale; oy=F1_MAP_Y+70-ay*scale;
-    }
-    palette(pal); clipRight=F1_MAP_X+140; fullMapDrawing=1;
-    for(y=F1_MAP_Y;y<F1_MAP_Y+140;y++) memcpy(mapImage+y*640+F1_MAP_X,dst+y*640+F1_MAP_X,140);
-    if(hit) {
-        for(y=0;y<140;y++) for(x=0;x<140;x++)
-            if(fullMapMask[y*140+x]) mapImage[(y+F1_MAP_Y)*640+x+F1_MAP_X]=fullMapLayer[y*140+x];
-    } else {
-    fullMapCapture=!mapZoom;
-    if(fullMapCapture) memset(fullMapMask,0,sizeof(fullMapMask));
-    for(i=0;i<count;i++) {
-        j=(i+1)%count;
-        mapRoad(ox-track[i].x*scale,oy+track[i].y*scale,ox-track[j].x*scale,oy+track[j].y*scale,2,badgeWhite,0);
-    }
-    if(pits) for(i=1;i<pitcount;i++) mapRoad(ox-pits[i-1].x*scale,oy+pits[i-1].y*scale,ox-pits[i].x*scale,oy+pits[i].y*scale,1,nearest(pal,150,120,40),0);
-    if(fullMapCapture) {
-        for(y=0;y<140;y++) memcpy(fullMapLayer+y*140,mapImage+(y+F1_MAP_Y)*640+F1_MAP_X,140);
-        memcpy(fullMapTrack,track,count*sizeof(*track));
-        if(pits) memcpy(fullMapPits,pits,pitcount*sizeof(*pits));
-        memcpy(fullMapPal,pal,768);fullMapCount=count;fullMapPitCount=pitcount;
-        fullMapHasPits=pits!=NULL;fullMapScale=scale;fullMapOx=ox;fullMapOy=oy;fullMapValid=1;
-    }
-    fullMapCapture=0;
-    }
-    for(i=0;i<n;i++) { px[i]=(int)(ox-cars[i].x*scale); py[i]=(int)(oy+cars[i].y*scale); }
-    if(focusIndex>=0) {px[focusIndex]=(int)(ox-focusX*scale);py[focusIndex]=(int)(oy+focusY*scale);}
-    /* Backmarkers first; better positions remain above overlapping dots. */
-    for(i=0;i<n;i++)order[i]=i;
-    for(i=1;i<n;i++) {
-        k=order[i];j=i;
-        while(j>0 && (cars[order[j-1]].pos>0?cars[order[j-1]].pos:99)<(cars[k].pos>0?cars[k].pos:99)) {
-            order[j]=order[j-1];j--;
-        }
-        order[j]=k;
-    }
-    for(k=0;k<n;k++) {
-        i=order[k];
-        if(cars[i].out && cars[i].id!=focusId) continue;
-        di=driver(cars[i].id);col=di<0?badgeWhite:teamcol[f1_drivers[di].team];
-        mapRoad(px[i],py[i],px[i],py[i],cars[i].id==focusId?3:2,col,0);
-    }
-    for(y=F1_MAP_Y;y<F1_MAP_Y+140;y++) memcpy(dst+y*640+F1_MAP_X,mapImage+y*640+F1_MAP_X,140);
-    fullMapDrawing=0;
+#if F1_MODULE_CIRCUIT_MAPS
+#include "../modules/circuit-maps/f1render_F1RenderFullMap.inc"
+#else
+
+#endif
 }
 
 #include "f1r90.inc"
@@ -717,38 +442,11 @@ static void pitHeaderText(unsigned char *dst,int x,int y,int w,int h,const char 
 /* Bottom-right pit cards, stacked upwards. Overflow continues to the left. */
 void F1RenderPitDisplays(unsigned char *dst,const unsigned char *pal,const F1PitDisplay *cards,int count)
 {
-    int i,di,team,x,y,j,k,font,modern,px,available;
-    char name[F1_NAME_LEN],number[16],elapsed[24];
-    palette(pal);modern=f1_theme!=F1_THEME_90S;
-    if(!modern)palette90(pal);
-    for(i=0;i<count;i++) {
-        x=640-8-104-(i/10)*108;y=F1_TV_SLOT_BOTTOM-34-(i%10)*37;
-        if(x<F1_PANEL_X+F1_PANEL_W+4)break;
-        clipRight=x+100;di=driver(cards[i].id);team=di<0?-1:f1_drivers[di].team;
-        if(team<0 || team>=F1_TEAM_COUNT)team=-1;
-        background(dst,x,y,104,34);
-        bar(dst,x,y,16,15,modern?badgeBlack:c90yellow);
-        sprintf(number,"%d",cards[i].position);
-        if(modern)pitHeaderText(dst,x,y,16,15,number,1,0);
-        else tc90(dst,x,y,16,15,number,F90_NAME,c90ink,NULL);
-        px=x+18;
-        if(modern && team>=0) {logo(dst,px,y+1,team);px+=18;}
-        strcpy(name,di<0?"UNKNOWN":f1_drivers[di].last);
-        for(j=0;name[j];j++)name[j]=(char)toupper((unsigned char)name[j]);
-        font=1;available=x+100-px;
-        if(modern && textwidth(name,font)>available)font=2;
-        k=(int)strlen(name);while(modern && k>0 && textwidth(name,font)>available)name[--k]=0;
-        if(modern)pitHeaderText(dst,px,y,available,15,name,font,1);
-        else t90(dst,px,vc90(y,15,F90_NAME),name,F90_NAME,-1,NULL,0,available);
-        bar(dst,x,y+15,104,2,modern?(team>=0?teamcol[team]:badgeWhite):c90yellow);
-        if(modern)text(dst,x+4,y+19,"IN PIT",1,-1,0);
-        else t90(dst,x+4,vc90(y+17,17,F90_NAME),"IN PIT",F90_NAME,-1,NULL,0,40);
-        sprintf(elapsed,"%lu.%lu",cards[i].elapsed/1000,(cards[i].elapsed%1000)/100);
-        if(modern)text(dst,x+100-textwidth(elapsed,0),y+18,elapsed,0,-1,0);
-        else {int tw=w90(elapsed,F90_NAME);if(tw>52)tw=52;
-            t90(dst,x+100-tw,vc90(y+17,17,F90_NAME),elapsed,F90_NAME,-1,NULL,0,52);}
-    }
-    clipRight=640;
+#if F1_MODULE_PIT_TIMING
+#include "../modules/pit-timing/f1render_F1RenderPitDisplays.inc"
+#else
+
+#endif
 }
 
 static long F1CombinedValidGrid(unsigned long t) {return t && !(t&0xf0000000UL) && t<=3600000UL?(long)t:0;}
@@ -771,82 +469,20 @@ void F1RenderGridMenu(unsigned char *dst,const unsigned char *pal,const unsigned
                       const unsigned long *times,int count,long scroll,long extent,
                       const char *country,const char *circuit,int laps,const int *focus)
 {
-    int i,j,start,n,y,di,team,col,bg,light,ink,muted,rail,accent,font,thumb,offset;long range,pole,t;
-    char label[128],surname[F1_NAME_LEN];
-    if(!dst || !pal || !ids || !times || count<1 || count>40)return;
-    if(f1_theme==F1_THEME_90S){F1RenderGridMenu90(dst,pal,ids,times,count,scroll,extent,country,circuit,laps);return;}
-    palette(pal);clipRight=494;bg=nearest(pal,17,18,25);light=nearest(pal,210,210,210);ink=nearest(pal,15,15,15);
-    muted=nearest(pal,30,32,42);rail=nearest(pal,50,53,64);accent=nearest(pal,230,28,45);
-    range=extent-320;if(range<1)range=1;
-    if(scroll<0)scroll=0;
-    if(scroll>range)scroll=range;
-    start=count>10?(int)(scroll*(count-10)/range):0;n=count-start;if(n>10)n=10;
-    pole=0;di=ids[0]&63;if(di>=1 && di<=40)pole=F1CombinedValidGrid(times[di-1]);
-    /* Clear list/header only; actual native controls draw separately. */
-    /* Whole native grid body, including scrollbar backing; controls follow. */
-    bar(dst,140,58,356,379,bg);
-    sprintf(label,"GRAND PRIX OF %.40s",country?country:"UNKNOWN");
-    for(i=0;label[i];i++)label[i]=(char)toupper((unsigned char)label[i]);
-    font=textwidth(label,3)>340?0:3;
-    text(dst,318-textwidth(label,font)/2,66,label,font,-1,0);
-    if(laps>0)sprintf(label,"%.40s (%d Laps)",circuit?circuit:"Unknown",laps);
-    else sprintf(label,"%.40s",circuit?circuit:"Unknown");
-    text(dst,318-textwidth(label,0)/2,87,label,0,-1,0);
-    bar(dst,148,105,319,2,accent);
-    text(dst,154,110,"STARTING GRID",0,-1,0);
-    clipRight=467;
-    text(dst,153,128,"POS",1,-1,0);text(dst,174,128,"DRIVER",1,-1,0);
-    text(dst,315,128,"TEAM",1,-1,0);text(dst,443,128,"TIME",1,-1,0);
-    for(i=0;i<n;i++) {
-        j=start+i;y=147+i*27;di=driver(ids[j]&63);team=di<0?-1:f1_drivers[di].team;col=j==0?ink:-1;
-        if(j==0)bar(dst,148,y-2,319,26,light);
-        else if(i&1)bar(dst,148,y-2,319,26,muted);
-        sprintf(label,"%d",j+1);clipRight=171;text(dst,153,y+4,label,2,col,0);
-        clipRight=295;
-        if(di>=0) {
-            text(dst,174,y,f1_drivers[di].first,5,col,0);strcpy(surname,f1_drivers[di].last);
-            for(j=0;surname[j];j++)surname[j]=(char)toupper((unsigned char)surname[j]);
-            text(dst,174,y+12,surname,0,col,0);
-        } else text(dst,174,y+5,"UNKNOWN",0,col,0);
-        clipRight=398;
-        if(f1_theme!=F1_THEME_90S)logo(dst,298,y+6,team);
-        text(dst,315,y+5,team>=0?f1_team_names[team]:"UNKNOWN",0,col,0);
-        j=start+i;di=ids[j]&63;t=di>=1 && di<=40?F1CombinedValidGrid(times[di-1]):0;
-        if(!t)strcpy(label,"NO TIME");else if(j==0 || !pole)F1QTime(label,t,0);else F1QDelta(label,t-pole);
-        clipRight=465;text(dst,465-textwidth(label,1),y+5,label,1,col,0);
-    }
-    (void)focus;(void)rail;(void)thumb;(void)offset;
-    clipRight=640;
+#if F1_MODULE_QUICKRACE_GRID
+#include "../modules/quickrace-grid/f1render_F1RenderGridMenu.inc"
+#else
+
+#endif
 }
 
 void F1RenderGridControl(unsigned char *dst,const unsigned char *pal,const int *rect,int kind,int focused,long scroll,long extent)
 {
-    int x,y,w,h,base,edge,fill,accent,thumb,offset;long range;
-    if(!dst || !pal || !rect)return;
-    x=rect[0];y=rect[1];w=rect[2]-x+1;h=rect[3]-y+1;
-    if(x<0 || y<0 || w<1 || h<1 || x+w>640 || y+h>480)return;
-    palette(pal);base=nearest(pal,42,45,55);edge=nearest(pal,190,190,190);accent=nearest(pal,230,28,45);
-    if(f1_theme==F1_THEME_90S){palette90(pal);base=c90navy;edge=c90gold;accent=c90yellow;}
-    fill=focused?accent:base;clipRight=x+w;
-    if(kind<3 && f1_theme==F1_THEME_90S){
-        bar(dst,x,y,w,h,fill);bar(dst,x,y,w,1,edge);bar(dst,x,y+h-1,w,1,edge);
-        tc90(dst,x+2,y,w-4,h,kind==0?"PRINT SETUP":kind==1?"PRINT":"OK",F90_HEAD,focused?c90ink:-1,NULL);
-        clipRight=640;return;
-    }
-    if(kind<3)F1GridButton(dst,x,y,w,h,kind==0?"PRINT SETUP":kind==1?"PRINT":"OK",fill,edge,-1);
-    else if(kind<7) {
-        F1GridButton(dst,x,y,w,h,"",fill,edge,-1);
-        F1GridArrow(dst,x+(w-15)/2,y+(h-(kind==3 || kind==6?11:5))/2,kind<5,kind==3 || kind==6,edge);
-    } else {
-        /* Native rail has a narrow hit rectangle inside a wider painted track. */
-        if(x==479 && w==10){x=475;y=150;w=20;h=240;clipRight=x+w;}
-        bar(dst,x,y,w,h,base);range=extent-320;if(range<1)range=1;
-        if(scroll<0)scroll=0;
-        if(scroll>range)scroll=range;
-        thumb=extent>0?(int)((long)h*320/extent):h;if(thumb<8)thumb=8;if(thumb>h)thumb=h;
-        offset=(int)(scroll*(h-thumb)/range);bar(dst,x+1,y+offset,w>2?w-2:w,thumb,accent);
-    }
-    clipRight=640;
+#if F1_MODULE_QUICKRACE_GRID
+#include "../modules/quickrace-grid/f1render_F1RenderGridControl.inc"
+#else
+
+#endif
 }
 
 #include "f1playerui.h"

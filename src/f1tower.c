@@ -1,3 +1,4 @@
+#include "f1modules.h"
 #include "f1native.h"
 /* F1 Tower prototype: native race telemetry, no host JSON polling. */
 #include "stdinc.h"
@@ -120,31 +121,19 @@ static int F1FuelAllowed(void)
 }
 void F1ControlKey(unsigned int scan)
 {
-    unsigned char targets[41];int i,id,n=0;
-    if(!F1FuelKey(&fuelState,scan)) return;
-    if(!F1FuelAllowed() || (pPaused && *pPaused)) {
-        F1DiagLog("FUEL DRAIN: DISABLED OR SESSION NOT LIVE");return;
-    }
-    memset(targets,0,sizeof(targets));
-    for(i=0;i<*pNumCars;i++) {
-        id=pCarStructs[i].id&63;
-        if(id>=1 && id<=40 && f1_fuel_targets[id] && !(pCarStructs[i].flags_90&32) && !targets[id]) { targets[id]=1;n++; }
-    }
-    fuelNoticeAt=*pCurTime;
-    if(!n) { strcpy(fuelNotice,"FUEL DRAIN: NO ACTIVE TARGETS");F1DiagLog(fuelNotice);return; }
-    fuelSession=*pSesStartTime;fuelTrack=*pTrackNr;
-    F1FuelStart(&fuelState,targets,*pCurTime,f1_fuel_duration);
-    sprintf(fuelNotice,"FUEL DRAIN: %d CAR%s",n,n==1?"":"S");F1DiagLog(fuelNotice);
-    for(i=1;i<=40;i++) if(targets[i]) {char s[50];sprintf(s,"FUEL DRAIN: CarId=%d duration=%lu ms",i,f1_fuel_duration);F1DiagLog(s);}
+#if F1_MODULE_FUEL_DRAIN
+#include "../modules/fuel-drain/f1tower_F1ControlKey.inc"
+#else
+
+#endif
 }
 static void F1ControlUpdate(void)
 {
-    int i;
-    if(!fuelState.active) return;
-    if(!F1FuelAllowed() || *pSesStartTime!=fuelSession || *pTrackNr!=fuelTrack) { F1FuelCancel(&fuelState);return; }
-    if(!F1FuelTick(&fuelState,*pCurTime,1) || (pPaused && *pPaused)) return;
-    for(i=0;i<*pNumCars;i++) if(F1FuelTarget(&fuelState,pCarStructs[i].id) && !(pCarStructs[i].flags_90&32))
-        pCarStructs[i].fuelLoad=0;
+#if F1_MODULE_FUEL_DRAIN
+#include "../modules/fuel-drain/f1tower_F1ControlUpdate.inc"
+#else
+
+#endif
 }
 void F1LogKey(unsigned int scan)
 {
@@ -209,21 +198,23 @@ static void F1ReplayObserve(void)
 }
 static int F1TowerVisible(void)
 {
-    return (activepage&PAGE_F1TOWER) && (!replayObserved || replayTowerAllowed);
+#if F1_MODULE_TIMING_TOWER
+#include "../modules/timing-tower/f1tower_F1TowerVisible.inc"
+#else
+return 0;
+#endif
 }
 void F1Toggle(void)
 {
-    F1ReplayObserve();
-    if(replayObserved && !replayTowerAllowed) {
-        replayTowerAllowed=1;
-        if(!(activepage&PAGE_F1TOWER)) F1TogglePart(PAGE_F1TOWER);
-        else ReDrawAllPages(F1OnRedraw);
-        return;
-    }
-    F1TogglePart(PAGE_F1TOWER);
+#if F1_MODULE_TIMING_TOWER
+#include "../modules/timing-tower/f1tower_F1Toggle.inc"
+#else
+
+#endif
 }
 void F1ToggleCard(void)
 {
+    if(pSessionMode && (*pSessionMode&0x80) ? !F1_MODULE_PIT_TIMING : !F1_MODULE_SECTORS)return;
     if(pSessionMode && (*pSessionMode&0x80)) {
         F1TogglePart(PAGE_F1CARD);
         strcpy(pitNotice,(activepage&PAGE_F1CARD)?"Pit signal ON":"Pit signal OFF");
@@ -239,25 +230,30 @@ void F1ToggleCard(void)
 }
 void F1ToggleMap(void)
 {
-    if(!(activepage&PAGE_F1MAP)) { fullMap=1; F1TogglePart(PAGE_F1MAP); }
-    else if(fullMap) { fullMap=0; F1DiagLog("KEY 6: LOCAL MAP"); }
-    else F1TogglePart(PAGE_F1MAP);
+#if F1_MODULE_CIRCUIT_MAPS
+#include "../modules/circuit-maps/f1tower_F1ToggleMap.inc"
+#else
+
+#endif
 }
-void F1MapZoom(void) { if((activepage&PAGE_F1MAP) && fullMap) F1CycleMapZoom(); }
+void F1MapZoom(void) {
+#if F1_MODULE_CIRCUIT_MAPS
+#include "../modules/circuit-maps/f1tower_F1MapZoom.inc"
+#else
+
+#endif
+}
 /* TV race: key 5 cycles plate -> gap panel -> off. Modern CURRENT GAP and
    90s DIFFERENCE share the bottom-centre slot with the driver plate.
    Qualifying and onboard keep the plain plate on/off. */
 static int driverDiff;
 void F1ToggleDriver(void)
 {
-    if(!(activepage&PAGE_F1DRIVER) && pSessionMode && !(*pSessionMode&0x80)) {
-        PAGESETOFF(PAGE_F1CARD);F1MicroMode=0;
-    }
-    if(!F1CockpitView && pSessionMode && (*pSessionMode&0x80)
-       && (activepage&PAGE_F1DRIVER) && !driverDiff) {
-        driverDiff=1;F1DiagLog("KEY 5: DIFFERENCE");return;
-    }
-    driverDiff=0;F1TogglePart(PAGE_F1DRIVER);
+#if F1_MODULE_DRIVER_PANELS
+#include "../modules/driver-panels/f1tower_F1ToggleDriver.inc"
+#else
+
+#endif
 }
 void F1Tab(unsigned int scan)
 {
@@ -307,6 +303,9 @@ void F1Update(void)
     diagFrames++;
     /* F1GRID diagnostic disabled in the release build. */
     F1ControlUpdate();
+#if !(F1_MODULE_TIMING_TOWER || F1_MODULE_DRIVER_PANELS || F1_MODULE_SECTORS || F1_MODULE_CIRCUIT_MAPS || F1_MODULE_PIT_TIMING)
+    return;
+#endif
     F1QualyUpdate();
     F1AdvancedUpdate();
     if(!pCarStructs || !pSessionMode || !(*pSessionMode&0x80) || !pCurTime) { F1Reset(); return; }
@@ -403,28 +402,11 @@ void F1Update(void)
 /* Native world coordinates use 11 more fractional bits than track segments. */
 static void F1MapCompose(unsigned char *dst,unsigned char *pal,int focus)
 {
-    static F1MapPoint track[2048],pits[512];
-    F1MapCar cars[26];int i,j,n,nt,np,qn=0;GP2Car *c;const F1QRow *qr=NULL;
-    if(!pTrackSegs || !pNumTrackSegs || !pCarStructs || !pNumCars) return;
-    nt=pNumTrackSegs[0];np=pNumTrackSegs[1];n=*pNumCars;
-    if(nt<2 || nt>2048 || np<0 || np>512 || n<1 || n>28) return;
-    if(n>26)n=26; /* Physical slots remain bounded; qualy roster is separate. */
-    for(i=0;i<nt;i++) {track[i].x=pTrackSegs[i].xPos;track[i].y=pTrackSegs[i].yPos;}
-    /* Same three separator segments as the original GP2Lap track map. */
-    for(i=0;i<np;i++) {pits[i].x=pTrackSegs[nt+3+i].xPos;pits[i].y=pTrackSegs[nt+3+i].yPos;}
-    if(pSessionMode && !(*pSessionMode&0x80)) qr=F1QRows(&qn);
-    for(i=0;i<n;i++) {
-        c=&pCarStructs[i];cars[i].id=c->id&63;cars[i].pos=(c->racePos>>1)+1;
-        if(qr) {
-            cars[i].pos=0;
-            for(j=0;j<qn;j++) if(qr[j].id==cars[i].id && qr[j].best) cars[i].pos=qr[j].pos;
-        }
-        cars[i].out=(c->flags_90&32) && !(c->flags_5E&1);
-        cars[i].x=(double)(long)c->xPos/2048.0;cars[i].y=(double)(long)c->yPos/2048.0;
-        cars[i].angle=(double)c->zAngle*3.141592653589793/32768.0;
-    }
-    if(fullMap) F1RenderFullMap(dst,pal,track,nt,pits,np,cars,n,focus);
-    else F1RenderMap(dst,pal,track,nt,pits,np,cars,n,focus);
+#if F1_MODULE_CIRCUIT_MAPS
+#include "../modules/circuit-maps/f1tower_F1MapCompose.inc"
+#else
+
+#endif
 }
 /* The existing GP2Lap draw hooks identify cockpit versus external view.
    EAX=ESI points to the native image buffer; cockpit refresh is skipped upstream. */
@@ -492,10 +474,10 @@ void F1Compose(unsigned char *dst)
 /* Install the original GP2Lap fastest-caption hook for both HUD themes.
    Keep the user's atlNoFastestLap switch and the original At The Line case. */
 extern unsigned long SupressFastestLap;
-unsigned long F1FastestHook=1;
+unsigned long F1FastestHook=F1_MODULE_TIMING_TOWER;
 int F1SuppressNativeFastest(void)
 {
-    return 1; /* Keep HUD designs; never show the native fastest text. */
+    return F1_MODULE_TIMING_TOWER;
 }
 int (*fpF1SuppressNativeFastest)(void)=F1SuppressNativeFastest;
 void (*fpF1Compose)(unsigned char *)=F1Compose;

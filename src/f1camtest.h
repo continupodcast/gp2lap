@@ -1,3 +1,4 @@
+#include "f1modules.h"
 #include "f1features.h"
 extern int F1CockpitView;
 
@@ -66,29 +67,11 @@ static void CamLog(const char *event,unsigned int scan,int control)
 }
 static void CamTestInit(void)
 {
-    unsigned char *site;
-    FILE *f=((FILE *)0) /* obsolete diagnostic disabled in T4 */;
-    if(f){fputs("GP2Lap v0.75 Cameras - rear follow smoothing, Ctrl+L toggle / Ctrl+R restore; 3/4 height, 6/7 zoom, 5 reset.\n",f);fclose(f);}
-    if(memcmp(IDAtoFlat(0x38635),"\x8b\x2c\xbd",3) ||
-       memcmp(IDAtoFlat(0x386ab),"\x8b\x2c\xbd",3) ||
-       memcmp(IDAtoFlat(0x3861e),"\x80\x3d",2) ||
-       *IDAtoFlat(0x38589)!=0xa1){CamLog("SIGNATURE_FAILED",0,0);return;}
-    camZoom=(long *)IDACodeReftoDataRef(0x38638);
-    camHeight=(long *)IDACodeReftoDataRef(0x386ae);
-    camMode=IDACodeReftoDataRef(0x38620);
-    camIndex=(unsigned long *)IDACodeReftoDataRef(0x3858a);
-    site=IDAtoFlat(0x385b4);
-    if(site[0]!=0xe8 || site+5+*(long *)(site+1)!=IDAtoFlat(0x384a1) ||
-       memcmp(IDAtoFlat(0x385a9),"\x81\xc3",2)) {CamLog("HOOK_SIGNATURE_FAILED",0,0);return;}
-    camTable=IDACodeReftoDataRef(0x385ab);
-    camViewed=(GP2Car **)IDACodeReftoDataRef(0x3855d);
-    camTestExpected=(unsigned long)(camTable+144);
-    camFinalX=(long *)IDACodeReftoDataRef(0x38530);
-    camFinalY=(long *)IDACodeReftoDataRef(0x38540);
-    camFinalZ=(long *)IDACodeReftoDataRef(0x38550);
-    camReadOriginal=(void (*)(void))IDAtoFlat(0x384a1);
-    *(long *)(site+1)=(unsigned char *)F1CamReadWrapped-(site+5);
-    camReady=1;CamLog("READY",0,0);
+#if F1_MODULE_CAMERA_CONTROLS
+#include "../modules/camera-controls/f1camtest_CamTestInit.inc"
+#else
+
+#endif
 }
 static void CamOrbitCompute(unsigned long clock)
 {
@@ -267,63 +250,17 @@ static void CamCycleOriginal(void)
 }
 void F1CameraTestKey(unsigned int scan,int control)
 {
-    char message[64];int requested;
-    if(scan==0xa4 || scan==0xa6 || scan==0x96){
-        if(camOrbitHeld==(int)(scan&127))camOrbitHeld=0;return;
-    }
-    if(!EnhancedCameras || !camReady || (scan&128) || !control)return;
-    requested=scan==0x24?1:scan==0x26?2:scan==0x16?3:0;
-    if(requested && camOrbitHeld!=(int)scan){
-        camOrbitHeld=(int)scan;
-        if(F1CockpitView){CamShowNotice("External view required");CamLog("BLOCKED_COCKPIT",scan,control);return;}
-        if(!camCycle){camSavedMode=*camMode;camSavedIndex=*camIndex;camSavedView=1;}
-        if(requested==3){
-            if(camCycle!=3){camCycle=3;camTargetExternal=0;}
-            else if(!camTargetExternal)camTargetExternal=1;
-            else {camCycle=0;camTargetExternal=0;}
-        }else {camCycle=camCycle==requested?0:requested;camTargetExternal=0;}
-        camDynamicOn=camCycle==1;cam360On=camCycle==2;camTargetOn=camCycle==3;
-        camFollowValid=0;CamTargetReset();
-        if(!camCycle)CamCycleOriginal();
-        else {
-            *camMode=0xc0;*camIndex=camCycle==1?9:camCycle==2?8:7;
-            cam360Start=pCurTime?*pCurTime:0;
-            CamShowNotice(camCycle==1?"Dynamic Chase Camera":camCycle==2?"360 Camera":camTargetExternal?"External Target Camera":"Target Camera");
-        }
-        CamTestUpdate();CamLog("CAMERA_DIRECT",scan,control);
-    }else if(scan==0x13){
-        CamCycleOriginal();CamTestUpdate();CamLog("CAMERA_RESTORE",scan,control);
-    }else if((scan==0x17 || scan==0x25) && *camMode==0xc0 &&
-             ((*camIndex==8 && cam360On) || (*camIndex==9 && camDynamicOn))){
-        int *radius=(*camIndex==8)?&cam360Radius:&camChaseRadius;
-        *radius+=(scan==0x25)?100:-100;
-        if(*radius<300)*radius=300;
-        if(*radius>2000)*radius=2000;
-        sprintf(message,"%s distance: %d",*camIndex==8?"360":"Chase",*radius);CamShowNotice(message);
-        CamTestUpdate();CamLog("CAMERA_DISTANCE",scan,control);
-    }
+#if F1_MODULE_CAMERA_CONTROLS
+#include "../modules/camera-controls/f1camtest_F1CameraTestKey.inc"
+#else
+
+#endif
 }
 static void CamTestUpdate(void)
 {
-    unsigned long index;
-    if(camNotice[0] && (!pCurTime || *pCurTime<camNoticeAt || *pCurTime-camNoticeAt>=2500UL)){
-        camNotice[0]=0;activepage&=~PAGE_F1CAMNOTICE;
-    }
-    if(!EnhancedCameras || !camReady || !pCurTime)return;
-    index=(*camMode==0xc0)?*camIndex:0;
-    camTestEnabled=0;
-    if(index==9 && camDynamicOn){
-        camTestExpected=(unsigned long)(camTable+9*16);camPitch=-1820;
-        /* Default pose is safe even while waiting for valid car telemetry. */
-        camOffsetX=0;camOffsetY=(short)-camChaseRadius;camOffsetZ=200;camOrbitYaw=0;
-        CamOrbitCompute(*pCurTime);camTestEnabled=1;
-    }else {camFollowValid=0;}
-    if(index==7 && camTargetOn){
-        camTestExpected=(unsigned long)(camTable+7*16);
-        CamTargetCompute(*pCurTime);camTestEnabled=1;
-    }else {CamTargetReset();}
-    if(index==8 && cam360On){
-        camTestExpected=(unsigned long)(camTable+8*16);
-        Cam360Compute(*pCurTime);camTestEnabled=1;
-    }
+#if F1_MODULE_CAMERA_CONTROLS
+#include "../modules/camera-controls/f1camtest_CamTestUpdate.inc"
+#else
+
+#endif
 }

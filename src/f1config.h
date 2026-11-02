@@ -1,3 +1,4 @@
+#include "f1modules.h"
 #ifndef F1CONFIG_H
 #define F1CONFIG_H
 extern int f1_gap_start;

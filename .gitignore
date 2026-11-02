@@ -4,3 +4,7 @@
 /lib
 /src/auth.c
 /src/auth.h
+
+/src/f1modules.generated.h
+/tools/__pycache__/
+/validation-results/

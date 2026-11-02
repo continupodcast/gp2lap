@@ -1,3 +1,4 @@
+#include "f1modules.h"
 #include "stdinc.h"
 #include <stddef.h>
 #include <math.h>
@@ -248,9 +249,9 @@ static void diagnostic(int focus)
 
 void F1AdvancedCard(unsigned char *dst,const unsigned char *pal,int focus,int cockpit)
 {
-    static const unsigned char unavailable[30]={0};
-    if(!F1MicroMode) return;
-    diagnostic(focus);
-    if(!f1_micro_enabled) return;
-    F1RenderMicro(dst,pal,ready && splitReady && focus>=1 && focus<=40?micro.cars[focus].colors:unavailable,cockpit);
+#if F1_MODULE_SECTORS
+#include "../modules/sectors/f1advanced_F1AdvancedCard.inc"
+#else
+
+#endif
 }

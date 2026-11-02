@@ -1,3 +1,7 @@
+# Modular development branches
+
+See [MODULARITY.md](MODULARITY.md) for module selection, dependencies, clean builds and validation limits. The stable v0.8 reference is preserved.
+
 # GP2Lap F1 HUD
 --------------
 

@@ -1,3 +1,4 @@
+#include "f1modules.h"
 #include "f1compoundrule.h"
 #ifndef F1PLAYERSTRATEGY_H
 #define F1PLAYERSTRATEGY_H
@@ -57,14 +58,11 @@ static int F1PlayerApply(GP2Car *c,int rank)
    may reset both planned/done counters to zero; do not mistake that for a stint. */
 void F1PlayerPitEnter(GP2Car *c)
 {
- int id;
- if(!StrategyPlayerEnabled || !PerCarTyreCompounds || !pCarSetups || !c || ((c->id&63)!=playerArmedId && (c->id&63)!=playerNativeId) || !(c->id&128) ||
-   !pIsReplay || *pIsReplay || !pSessionMode || *pSessionMode!=0x80)return;
- id=c->id&63;playerPitActive=1;playerPitOverride=-1;playerPitUsedBefore=playerUsedMask;
- if(!StrategyPlayerPitChoice)return;
- /* T16: selection is non-modal, in GP2's live refuelling menu.
-    The native draw hook shows the scheduled/current compound; no waiting. */
+#if F1_MODULE_PLAYER_RACE_STRATEGY
+#include "../modules/player-race-strategy/f1playerstrategy_F1PlayerPitEnter.inc"
+#else
 
+#endif
 }
 static void F1PlayerFinishWithoutStops(GP2Car *c)
 {
@@ -90,87 +88,26 @@ static void F1PlayerFinishWithoutStops(GP2Car *c)
 }
 void F1PlayerStrategyService(void)
 {
- int i,id,set,changed,advanced,next,action;GP2Car *c;GP2CSx *s;
- if(!StrategyPlayerEnabled || (!playerArmedId && !playerNativeId) || !PerCarTyreCompounds ||
-  !pSessionMode || *pSessionMode!=0x80 || !pIsReplay || *pIsReplay || !pNumCars ||
-  !pCarStructs || !pCarSetups || !pCurTime || !GP2_LapsInThisRace)return;
- if(*pNumCars<1 || *pNumCars>26)return;F1TyreTablesInit();
- for(i=0;i<*pNumCars;i++){
-  c=&pCarStructs[i];id=c->id&63;if((id!=playerArmedId && id!=playerNativeId) || !(c->id&128))continue;
-  s=&pCarSetups[id-1];set=tyreTablesReady?(int)tyreSetIndex[id-1]:-1;
-  if(id==playerNativeId){
-   /* Original strategy owns all scheduling/fuel. Only the explicit pit choice
-      is applied after native service, and again on exit if no event is seen. */
-   if(playerPitActive && playerPitOverride>=0){
-    s->compound=(unsigned char)playerPitOverride;
-    if(pPlayerSetup)((GP2CSx *)pPlayerSetup)->compound=s->compound;
-   }
-   continue;
-  }
-  changed=set>=0 && set<=6 && autoSetSeen[id] && set!=autoSet[id];
-  advanced=c->numPitStopsDone>autoStops[id];next=AutoNextLap(id);
-  if(changed || advanced){
-   action=1;
-   if(next && advanced && (int)c->lapNr>=next-7){autoStint[id]++;action=2;}
-   else if(!next)action=3;
-   if(playerPitOverride>=0){
-    autoCarPlan[id].compound[autoStint[id]]=(unsigned char)playerPitOverride;action=6;
-   }
-   s->compound=autoCarPlan[id].compound[autoStint[id]];
-   playerUsedMask=(playerPitActive?playerPitUsedBefore:playerUsedMask)|(1U<<s->compound);
-   if(advanced && c->numPitStops!=0)F1PlayerSchedule(c);
-   if(pPlayerSetup)((GP2CSx *)pPlayerSetup)->compound=s->compound;
-   AutoServiceLog(c,id,action,autoSetSeen[id]?autoSet[id]:-1,set);
-  }
-  if(playerPitActive && playerPitOverride>=0){
-   s->compound=(unsigned char)playerPitOverride;
-   autoCarPlan[id].compound[autoStint[id]]=(unsigned char)playerPitOverride;
-   playerUsedMask=playerPitUsedBefore|(1U<<s->compound);
-   if(pPlayerSetup)((GP2CSx *)pPlayerSetup)->compound=s->compound;
-  }
-  F1PlayerFinishWithoutStops(c);
-  autoStops[id]=c->numPitStopsDone;
-  if(set>=0 && set<=6){autoSet[id]=(unsigned char)set;autoSetSeen[id]=1;}
- }
+#if F1_MODULE_PLAYER_RACE_STRATEGY
+#include "../modules/player-race-strategy/f1playerstrategy_F1PlayerStrategyService.inc"
+#else
+
+#endif
 }
 void F1PlayerPitLeave(GP2Car *c)
 {
- if(!StrategyPlayerEnabled || !PerCarTyreCompounds || !pCarSetups || !c || ((c->id&63)!=playerArmedId && (c->id&63)!=playerNativeId) || !pIsReplay || *pIsReplay)return;
- F1PlayerStrategyService();playerPitActive=0;playerPitOverride=-1;
+#if F1_MODULE_PLAYER_RACE_STRATEGY
+#include "../modules/player-race-strategy/f1playerstrategy_F1PlayerPitLeave.inc"
+#else
+
+#endif
 }
 static void F1PlayerStrategyTick(void)
 {
- int i,n,humans=0,id=0,choice,quick,savedCount;unsigned char *a,*b,*q;GP2Car *c=0;
- AutoPlan savedTop[10];
- if(!StrategyPlayerEnabled || !PerCarTyreCompounds || StrategyTestEnabled || TyreTestFuelLaps || TyreTestCompound ||
-  !pCurTime || !pSessionMode || !pIsReplay || *pIsReplay || !pSesStartTime || !pNumCars ||
-  !pCarStructs || !pCarSetups || !pPlayerSetup || !GP2_LapsInThisRace)return;
- if(playerMode!=*pSessionMode || *pCurTime<playerClock){F1PlayerStrategyReset();}
- playerMode=*pSessionMode;playerClock=*pCurTime;
- if(playerMode!=0x80)return;
- F1PlayerStrategyService();
- if(playerMenuDone || *pSesStartTime || *GP2_LapsInThisRace<6)return;
- n=*pNumCars;if(n<1 || n>26)return;
- for(i=0;i<n;i++)if(pCarStructs[i].id&128){humans++;c=&pCarStructs[i];}
- if(!humans)return;
- /* Multiple player cars share native pPlayerSetup. Do not promise independent
-    per-player compounds until that path is implemented and verified. */
- if(humans!=1){playerMenuDone=1;return;}
- id=c->id&63;if(id<1 || id>40 || c->lapNr || c->speed || c->numPitStopsDone)return;
- a=IDAtoFlat(0x2C4EFUL);b=IDAtoFlat(0x2BEF0UL);q=IDAtoFlat(0x6AE32UL);
- if(!a || !b || !q || memcmp(a,"\xf7\x25",2) || memcmp(b,"\xf7\x35",2) || memcmp(a+2,b+2,4) ||
-  q[0]!=0xC6 || q[1]!=0x05 || q[6]!=0x80){playerMenuDone=1;return;}
- autoFuelUnit=(unsigned long *)IDACodeReftoDataRef(0x2C4F1UL);
- autoQuickFlag=(unsigned char *)IDACodeReftoDataRef(0x6AE34UL);if(!autoFuelUnit || !autoQuickFlag)return;
- quick=*autoQuickFlag!=0;
- savedCount=autoTopCount;memcpy(savedTop,autoTop,sizeof(savedTop));
- if(!AutoBuildPlayerOptions(*GP2_LapsInThisRace,quick)){playerMenuDone=1;autoTopCount=savedCount;memcpy(autoTop,savedTop,sizeof(savedTop));return;}
- /* NPC plans are already copied into autoCarPlan. The chooser never mutates pool. */
- playerMenuDone=1;choice=-1;
- if(F1PlayerStrategyChoose(autoTop,autoTopCount,id,*GP2_LapsInThisRace,&choice) && (choice>=0 || choice==-2)){
-  if(choice==-2){autoTop[0]=playerEditedPlan;choice=0;}
-  if(!F1PlayerApply(c,choice))playerNativeId=id;
- }else playerNativeId=id;
- autoTopCount=savedCount;memcpy(autoTop,savedTop,sizeof(savedTop));
+#if F1_MODULE_PLAYER_RACE_STRATEGY
+#include "../modules/player-race-strategy/f1playerstrategy_F1PlayerStrategyTick.inc"
+#else
+
+#endif
 }
 #endif

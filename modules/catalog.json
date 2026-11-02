@@ -1,0 +1,77 @@
+{
+  "timing-tower": {
+    "requires": [],
+    "description": "Race and qualifying timing towers, fastest-lap banners"
+  },
+  "driver-panels": {
+    "requires": [],
+    "description": "Driver identity and current-gap panels"
+  },
+  "sectors": {
+    "requires": [],
+    "description": "Sector cards and microsector comparisons"
+  },
+  "circuit-maps": {
+    "requires": [],
+    "description": "Full and local circuit maps"
+  },
+  "pit-timing": {
+    "requires": [],
+    "description": "Live pit-signal cards"
+  },
+  "native-captions": {
+    "requires": [],
+    "description": "Native caption fonts, layout and visibility filters"
+  },
+  "camera-controls": {
+    "requires": [],
+    "description": "Enhanced cameras and external pit-camera access"
+  },
+  "fuel-drain": {
+    "requires": [],
+    "description": "Optional selected-car fuel drain"
+  },
+  "quickrace-grid": {
+    "requires": [],
+    "description": "Custom Quickrace ordering and grid-menu presentation"
+  },
+  "tyre-compounds": {
+    "requires": [],
+    "description": "Per-car compound infrastructure and tyre telemetry"
+  },
+  "tyre-compound-hud": {
+    "requires": [
+      "tyre-compounds",
+      "timing-tower"
+    ],
+    "description": "Compound badges and tyre-age display"
+  },
+  "race-strategy-engine": {
+    "requires": [
+      "tyre-compounds"
+    ],
+    "description": "Measured compound model, strategy generation and AI assignment"
+  },
+  "player-race-strategy": {
+    "requires": [
+      "race-strategy-engine"
+    ],
+    "description": "Editable pre-race player strategy and player service tracking"
+  },
+  "pit-compound-selector": {
+    "requires": [
+      "player-race-strategy"
+    ],
+    "description": "Live keyboard-driven compound selection in the native pit menu"
+  },
+  "combined-qualifying": {
+    "requires": [
+      "timing-tower"
+    ],
+    "description": "Friday/Saturday combined qualifying display"
+  },
+  "hud-editor": {
+    "requires": [],
+    "description": "Browser editor for configuration; no DOS runtime dependency"
+  }
+}

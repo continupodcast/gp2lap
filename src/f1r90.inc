@@ -1,3 +1,4 @@
+#include "f1modules.h"
 /* f1r90.inc - late-1990s broadcast theme (HudTheme = 1).
    Included at the end of f1render.c: it reuses nearest(), palette(), the
    translucency tables (dark, white) and the bar/background helpers.
@@ -179,11 +180,11 @@ static void F1RenderRace90(unsigned char *dst,const unsigned char *pal,const F1R
         else if(mode==3) F1Gap(label,row->leaderGap);
         else F1Gap(label,row->gap);
         tr90(dst,x+T90_W-4,vc90(y,T90_BOXH,F90_TOWER),label,F90_TOWER,col,dim);
-        if(PerCarTyreCompounds){
-        label[0]=row->compound>=0 && row->compound<4?"HMSS"[row->compound]:'?';label[1]=0;
-        t90(dst,x+T90_W+4,vc90(y,T90_BOXH,F90_SMALL),label,F90_SMALL,row->compound>=0 && row->compound<4?tyrecol[row->compound]:-1,NULL,dim,8);
-        t90(dst,x+T90_W+5,vc90(y,T90_BOXH,F90_SMALL),label,F90_SMALL,row->compound>=0 && row->compound<4?tyrecol[row->compound]:-1,NULL,dim,8);
-        }
+        if(F1_MODULE_TYRE_COMPOUND_HUD && PerCarTyreCompounds){
+#if F1_MODULE_TYRE_COMPOUND_HUD
+#include "../modules/tyre-compound-hud/f1r90_badges_1.inc"
+#endif
+}
         if(row->finished) finishBadge(dst,x+T90_W+16,y);
     }
 }
@@ -236,11 +237,11 @@ static void F1RenderQualy90(unsigned char *dst,const unsigned char *pal,const F1
         else if(gaps && r->pos>1 && leader) { F1QDelta(label,r->best-leader); col=c90lime; }
         else F1QTime(label,r->best,0);
         tr90(dst,x+T90_QW-4,vc90(y,T90_BOXH,r->best?F90_TOWER:F90_SMALL),label,r->best?F90_TOWER:F90_SMALL,r->improved?c90lime:col,!r->best);
-        if(PerCarTyreCompounds){
-        label[0]=r->compound>=0 && r->compound<4?"HMSS"[r->compound]:'?';label[1]=0;
-        t90(dst,x+T90_QW+4,vc90(y,T90_BOXH,F90_SMALL),label,F90_SMALL,r->compound>=0 && r->compound<4?tyrecol[r->compound]:-1,NULL,0,8);
-        t90(dst,x+T90_QW+5,vc90(y,T90_BOXH,F90_SMALL),label,F90_SMALL,r->compound>=0 && r->compound<4?tyrecol[r->compound]:-1,NULL,0,8);
-        }
+        if(F1_MODULE_TYRE_COMPOUND_HUD && PerCarTyreCompounds){
+#if F1_MODULE_TYRE_COMPOUND_HUD
+#include "../modules/tyre-compound-hud/f1r90_badges_2.inc"
+#endif
+}
         if(r->pit) badge(dst,x+T90_QW+16,y,0);
     }
 }
@@ -342,37 +343,19 @@ static void side90(unsigned char *dst,int x,int y,int w,const F1Row *r,int right
 }
 void F1Render90Difference(unsigned char *dst,const unsigned char *pal,const F1Row *rows,int count,int focus)
 {
-    int i,fi=-1,a,b,sw; char label[20];
-    if(!dst || !pal || !rows || count<2) return;
-    for(i=0;i<count;i++) if(rows[i].id==focus) fi=i;
-    if(fi<0) return;
-    a=fi>0?fi-1:0; b=fi>0?fi:1;
-    if(rows[a].out || rows[a].pit || rows[b].out || rows[b].pit || rows[b].gap<0) return;
-    palette90(pal); clipRight=640;
-    panel90(dst,D90_X,D90_Y,D90_W,D90_H);
-    sw=(D90_W-80)/2;
-    side90(dst,D90_X,D90_Y,sw,&rows[a],0);
-    side90(dst,D90_X+D90_W-sw,D90_Y,sw,&rows[b],1);
-    clipRight=D90_X+sw+80;
-    tc90(dst,D90_X+sw,D90_Y+2,80,10,"DIFFERENCE",F90_HEAD,c90cyan,NULL);
-    diff90(label,rows[b].gap);
-    tc90(dst,D90_X+sw,D90_Y+12,80,17,label,F90_VALUE,c90yellow,NULL);
-    clipRight=640;
+#if F1_MODULE_DRIVER_PANELS
+#include "../modules/driver-panels/f1r90_F1Render90Difference.inc"
+#else
+
+#endif
 }
 
 /* ══════════════ FASTEST LAP banner ══════════════ */
 void F1Render90Fastest(unsigned char *dst,const unsigned char *pal,int id,long ms,int y)
 {
-    int di,x=(640-B90_W)/2,fw; char first[F1_NAME_LEN],last[F1_NAME_LEN],label[20];
-    if(!dst || !pal || id<1 || id>40 || y<0 || y>480-B90_H) return;
-    di=driver(id); if(di<0) return;
-    palette90(pal); clipRight=x+B90_W;
-    panel90(dst,x,y,B90_W,B90_H);
-    t90(dst,x+6,y+3,"FASTEST LAP",F90_HEAD,c90cyan,NULL,0,0);
-    up90(first,f1_drivers[di].first,sizeof(first)); up90(last,f1_drivers[di].last,sizeof(last));
-    time90(label,ms);
-    tr90(dst,x+B90_W-6,y+14,label,F90_NAME,-1,0);
-    fw=first[0]?w90(first,F90_SMALL)+4:0;
-    if(first[0]) t90(dst,x+6,y+20,first,F90_SMALL,-1,NULL,0,0);
-    t90(dst,x+6+fw,y+14,last,F90_NAME,-1,NULL,0,B90_W-12-fw-w90(label,F90_NAME)-6);
+#if F1_MODULE_TIMING_TOWER
+#include "../modules/timing-tower/f1r90_F1Render90Fastest.inc"
+#else
+
+#endif
 }
