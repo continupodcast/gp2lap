@@ -1,0 +1,8 @@
+{
+  "requires": [],
+  "description": "Browser editor for configuration; no DOS runtime dependency",
+  "id": "hud-editor",
+  "entry_sources": [
+    "EDITOR.html"
+  ]
+}
