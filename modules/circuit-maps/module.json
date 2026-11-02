@@ -1,0 +1,12 @@
+{
+  "requires": [],
+  "description": "Full and local circuit maps",
+  "id": "circuit-maps",
+  "entry_sources": [
+    "f1render_F1RenderFullMap.inc",
+    "f1render_F1RenderMap.inc",
+    "f1tower_F1MapCompose.inc",
+    "f1tower_F1MapZoom.inc",
+    "f1tower_F1ToggleMap.inc"
+  ]
+}
