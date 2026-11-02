@@ -1,0 +1,9 @@
+{
+  "requires": [],
+  "description": "Per-car compound infrastructure and tyre telemetry",
+  "id": "tyre-compounds",
+  "entry_sources": [
+    "convert_AHFFillCompounds.inc",
+    "convert_F1CompoundRaceSync.inc"
+  ]
+}
