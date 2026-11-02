@@ -1,0 +1,11 @@
+{
+  "requires": [],
+  "description": "Driver identity and current-gap panels",
+  "id": "driver-panels",
+  "entry_sources": [
+    "f1modern_F1RenderCurrentGap.inc",
+    "f1r90_F1Render90Difference.inc",
+    "f1render_F1RenderDriverAtXY.inc",
+    "f1tower_F1ToggleDriver.inc"
+  ]
+}
