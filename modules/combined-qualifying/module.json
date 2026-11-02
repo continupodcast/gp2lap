@@ -1,0 +1,10 @@
+{
+  "requires": [
+    "timing-tower"
+  ],
+  "description": "Friday/Saturday combined qualifying display",
+  "id": "combined-qualifying",
+  "entry_sources": [
+    "f1qualy_F1QualyTab.inc"
+  ]
+}
