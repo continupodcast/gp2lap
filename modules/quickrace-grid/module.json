@@ -1,0 +1,11 @@
+{
+  "requires": [],
+  "description": "Custom Quickrace ordering and grid-menu presentation",
+  "id": "quickrace-grid",
+  "entry_sources": [
+    "f1gridprobe_F1GridProbeInit.inc",
+    "f1render_F1RenderGridControl.inc",
+    "f1render_F1RenderGridMenu.inc",
+    "gridcap_QuickGridInit.inc"
+  ]
+}
