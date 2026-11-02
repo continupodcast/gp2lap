@@ -1,0 +1,9 @@
+{
+  "requires": [],
+  "description": "Optional selected-car fuel drain",
+  "id": "fuel-drain",
+  "entry_sources": [
+    "f1tower_F1ControlKey.inc",
+    "f1tower_F1ControlUpdate.inc"
+  ]
+}
