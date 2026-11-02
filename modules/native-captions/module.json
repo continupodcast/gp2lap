@@ -1,0 +1,9 @@
+{
+  "requires": [],
+  "description": "Native caption fonts, layout and visibility filters",
+  "id": "native-captions",
+  "entry_sources": [
+    "f1native_F1NativeFiltersInit.inc",
+    "f1native_F1NativeInit.inc"
+  ]
+}
