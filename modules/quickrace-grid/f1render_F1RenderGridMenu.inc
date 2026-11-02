@@ -1,5 +1,5 @@
 
-    int i,j,start,n,y,di,team,col,bg,light,ink,muted,rail,accent,font,thumb,offset;long range,pole,t;
+    int i,j,start,n,y,di,team,col,bg,light,ink,muted,rail,accent,font;long range,pole,t;
     char label[128],surname[F1_NAME_LEN];
     if(!dst || !pal || !ids || !times || count<1 || count>40)return;
     if(f1_theme==F1_THEME_90S){F1RenderGridMenu90(dst,pal,ids,times,count,scroll,extent,country,circuit,laps);return;}
@@ -43,6 +43,6 @@
         if(!t)strcpy(label,"NO TIME");else if(j==0 || !pole)F1QTime(label,t,0);else F1QDelta(label,t-pole);
         clipRight=465;text(dst,465-textwidth(label,1),y+5,label,1,col,0);
     }
-    (void)focus;(void)rail;(void)thumb;(void)offset;
+    (void)focus;(void)rail;
     clipRight=640;
 
