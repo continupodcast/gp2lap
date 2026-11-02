@@ -32,13 +32,15 @@ def configure(requested=None):
 def build(requested=None,destination=None):
     m=configure(requested)
     # Watcom's historical makefiles do not track included headers. Never reuse objects.
-    for p in (ROOT/'out').iterdir():
+    for p in list((ROOT/'out').iterdir()):
         if p.suffix.lower() in ('.obj','.err','.exe'):p.unlink()
     env=os.environ.copy()
     if 'WATCOM' in env:
         base=pathlib.Path(env['WATCOM']);env['PATH']=os.pathsep.join(str(base/name) for name in (['binnt64','binnt'] if os.name=='nt' else ['binl64','binl']))+os.pathsep+env['PATH'];env.setdefault('INCLUDE',str(base/'h'))
     if not shutil.which('wmake',path=env['PATH']):raise ValueError('Open Watcom wmake not found; set WATCOM to the compiler directory.')
-    subprocess.run(['wmake','-f','makefile.lin','out/gp2lap.exe'],cwd=ROOT,env=env,check=True)
+    subprocess.run(['wmake','-a','-f','makefile.lin','out/gp2lap.exe'],cwd=ROOT,env=env,check=True)
+    for response in ROOT.glob('wm*.tmp'):
+        response.unlink()
     exe=ROOT/'out/gp2lap.exe'
     m.update(executable_sha256=hashlib.sha256(exe.read_bytes()).hexdigest(),executable_bytes=exe.stat().st_size)
     (ROOT/'out/modules.json').write_text(json.dumps(m,indent=2)+'\n')

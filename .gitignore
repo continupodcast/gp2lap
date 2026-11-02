@@ -8,3 +8,5 @@
 /src/f1modules.generated.h
 /tools/__pycache__/
 /validation-results/
+
+/wm*.tmp
