@@ -1,0 +1,10 @@
+{
+  "requires": [
+    "player-race-strategy"
+  ],
+  "description": "Live keyboard-driven compound selection in the native pit menu",
+  "id": "pit-compound-selector",
+  "entry_sources": [
+    "f1inlinepit_F1InlinePitInit.inc"
+  ]
+}
