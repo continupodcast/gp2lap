@@ -1,0 +1,14 @@
+{
+  "requires": [
+    "tyre-compounds",
+    "timing-tower"
+  ],
+  "description": "Compound badges and tyre-age display",
+  "id": "tyre-compound-hud",
+  "entry_sources": [
+    "f1r90_badges_1.inc",
+    "f1r90_badges_2.inc",
+    "f1render_F1RenderRace_badges.inc",
+    "f1render_F1RenderQualy_badges.inc"
+  ]
+}
