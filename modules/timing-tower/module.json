@@ -1,0 +1,13 @@
+{
+  "requires": [],
+  "description": "Race and qualifying timing towers, fastest-lap banners",
+  "id": "timing-tower",
+  "entry_sources": [
+    "f1modern_F1RenderModernFastest.inc",
+    "f1r90_F1Render90Fastest.inc",
+    "f1render_F1RenderQualy.inc",
+    "f1render_F1RenderRace.inc",
+    "f1tower_F1Toggle.inc",
+    "f1tower_F1TowerVisible.inc"
+  ]
+}
