@@ -48,7 +48,7 @@ python3 tools/modules.py build --modules circuit-maps,driver-panels --output ../
 python3 tools/modules.py build --modules "" --output ../core-only
 ```
 
-The first command automatically includes the strategy engine, player strategy and compounds. Missing module sources, unknown names and dependency cycles are errors. Each invocation deletes previous object files because the historical makefile does not track header dependencies. Do not bypass this wrapper when switching profiles. The generated header is deliberately untracked; a fresh checkout requires configuration before using the historical makefiles.
+The first command automatically includes the strategy engine, player strategy and compounds. Missing module sources, unknown names and dependency cycles are errors. Each invocation deletes previous object files and forces all make targets to rebuild because the historical makefile does not track header dependencies. Do not bypass this wrapper when switching profiles. The generated header is deliberately untracked; a fresh checkout requires configuration before using the historical makefiles.
 
 Build output contains a DOS EXE, a CFG with omitted gameplay modules disabled, license/credits and a JSON capability/hash record. The editor is included only when selected. An omitted module cannot be enabled by changing the CFG. Modern and 90s rendering themes remain shared configuration choices.
 
