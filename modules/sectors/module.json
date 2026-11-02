@@ -1,0 +1,10 @@
+{
+  "requires": [],
+  "description": "Sector cards and microsector comparisons",
+  "id": "sectors",
+  "entry_sources": [
+    "f1advanced_F1AdvancedCard.inc",
+    "f1render_F1RenderMicro.inc",
+    "f1render_F1RenderQualyCard.inc"
+  ]
+}
