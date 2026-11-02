@@ -1,0 +1,10 @@
+{
+  "requires": [
+    "tyre-compounds"
+  ],
+  "description": "Measured compound model, strategy generation and AI assignment",
+  "id": "race-strategy-engine",
+  "entry_sources": [
+    "f1autostrategy_F1AutoStrategyTick.inc"
+  ]
+}
