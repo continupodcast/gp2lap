@@ -68,3 +68,12 @@ $('strategyCompoundRule').checked=true;$('strategyCompoundRule').onchange();
 check(cfg().includes('StrategyRequireCompoundChange = 1'),'export on');
 `,context);
 console.log('PASS compound-rule checkbox, default compatibility and CFG roundtrip');
+
+vm.runInContext(`
+const legacyDefaults='[Textures]\\nJamTextureExtraMB = 0\\n[Track]\\nExtraTrackSegments = 0\\nExtraTrackFileKB = 0\\n[Pit]\\nPitSpeedKmh = 0\\n[AI]\\nAILowHpLaunchFix = 0\\nAILaunchFadeKmh = 128\\nAIBankingRoll = 0\\n[Season]\\n;SeasonOverrides = "override.cfg"\\n[Rcr]\\n;SvgaRcr1 = 9999000\\n;SvgaRcr2 = 9999000\\n;SvgaRcr3 = 9999000\\n';
+state.base += '\\n'+legacyDefaults;const exportedClean=cfg();
+for(const key of ['JamTextureExtraMB','ExtraTrackSegments','ExtraTrackFileKB','PitSpeedKmh','AILowHpLaunchFix','AILaunchFadeKmh','AIBankingRoll','SeasonOverrides'])check(!exportedClean.includes(key),'removed '+key);
+for(let n=1;n<=3;n++)check(exportedClean.includes('SvgaRcr'+n+' = 9999000'),'active RCR '+n);
+check(cfg()===exportedClean,'stable repeated export');
+`,context);
+console.log('PASS actual editor export cleans imported legacy defaults and enables SVGA RCR');
