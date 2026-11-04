@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compose additive GP2Lap build modules, resolve dependencies and clean-build DOS."""
 import argparse, hashlib, json, os, pathlib, shutil, subprocess, sys
+from cfg_defaults import clean_cfg
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 CATALOG=ROOT/'modules/catalog.json'
 def resolve(requested,catalog=None):
@@ -53,7 +54,7 @@ def build(requested=None,destination=None):
         cfg=d/'GP2LAP.CFG'
         if cfg.exists():
             import re
-            text=cfg.read_text(encoding='latin1')
+            text=clean_cfg(cfg.read_text(encoding='latin1'))
             controls={'tyre-compounds':['PerCarTyreCompounds','SoftTyresInQuali','TyreDiagnostics','TyreTestCompound','TyreTestFuelLaps'],
               'race-strategy-engine':['StrategyAutoEnabled','StrategyDistributionEnabled','StrategyTestEnabled','StrategyRepairTestEnabled'],
               'player-race-strategy':['StrategyPlayerEnabled'],'pit-compound-selector':['StrategyPlayerPitChoice'],'camera-controls':['EnhancedCameras']}
