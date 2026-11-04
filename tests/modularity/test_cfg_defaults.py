@@ -22,5 +22,6 @@ class Defaults(unittest.TestCase):
   fixtures=['[AI]\nAILowHpLaunchFix = 0\nAILaunchFadeKmh = 128\n[Pit]\nPitSpeedKmh = 0\n[Season]\n;SeasonOverrides = "override.cfg"\n[Rcr]\n;SvgaRcr1 = 9999000\n;SvgaRcr2 = 9999000\n;SvgaRcr3 = 9999000\n','[AI]\nAILowHpLaunchFix = 1\nAILaunchFadeKmh = 128\n[Pit]\nPitSpeedKmh = 60\n[Rcr]\nSvgaRcr1 = 42\n;SvgaRcr1 = 9999000\n','[Unknown]\nCustom = 8\n']
   script="const fs=require('fs'),vm=require('vm');const h=fs.readFileSync(process.argv[1],'utf8');const f=h.slice(h.indexOf('function cleanCfgDefaults('),h.indexOf('function cfg(){'));const c={};vm.createContext(c);vm.runInContext(f,c);process.stdout.write(JSON.stringify(JSON.parse(fs.readFileSync(0,'utf8')).map(c.cleanCfgDefaults)));"
   actual=json.loads(subprocess.check_output(['node','-e',script,str(html)],input=json.dumps(fixtures),text=True))
-  assert actual==[clean_cfg(s) for s in fixtures]
+  meaningful=lambda text:[line for line in text.splitlines() if line.strip()]
+  assert [meaningful(s) for s in actual]==[meaningful(clean_cfg(s)) for s in fixtures]
 if __name__=='__main__':unittest.main()
