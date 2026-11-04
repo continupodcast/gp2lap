@@ -35,5 +35,7 @@ def run():
         subprocess.run([str(exe)],cwd=t,check=True)
     results.append({'test':'omitted render modules: null input and unchanged framebuffer','status':'PASS'})
     m.configure(names)
+    subprocess.run(['python3',str(ROOT/'tests/modularity/test_cfg_defaults.py')],check=True)
+    results.append({'test':'CFG defaults, native pit default and editor/builder parity','status':'PASS'})
     print(json.dumps(results,indent=2))
 if __name__=='__main__':run()
