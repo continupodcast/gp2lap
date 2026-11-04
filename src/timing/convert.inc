@@ -80,7 +80,7 @@ unsigned long ShowTyreCompoundBadge = 1;// 2026: show the (X) compound badge; on
 unsigned long JamTextureExtraMB = 0;    // 2026: ADD N MB to the JAM texture buffer over stock ~2.84MB (0 = stock)
 unsigned long ExtraTrackSegments = 0;   // 2026: ADD N track+pit segments over stock 1600 (0 = stock ~7km limit)
 unsigned long ExtraTrackFileKB = 0;     // 2026: ADD N KB to the track file/data buffers over stock ~62KB (0 = stock)
-unsigned long PitSpeedKmh = 80;         // 2026: pit-lane speed limit (km/h) for BOTH AI + player (0 = stock/untouched)
+unsigned long PitSpeedKmh = 0;         // 2026: pit-lane speed limit (km/h) for BOTH AI + player (0 = stock/untouched)
 static unsigned long s_baseCsum  = 0;   // 2026: track checksum the base below was captured for
 static int           s_trackBase = -1;  // 2026: genuine track base compound (0..3), -1 = not yet
 
