@@ -1,6 +1,7 @@
 """Create an extended GP2LAP.CFG from the supplied base configuration."""
 import json
 from pathlib import Path
+from cfg_defaults import clean_cfg
 
 root=Path(__file__).resolve().parents[1]
 data=json.loads((root/'f1-input/drivers.json').read_text())
@@ -24,5 +25,5 @@ for i,d in enumerate(data['drivers'],1):
               f'Driver{i:02d}Last = "{d["last"]}"',f'Driver{i:02d}Abbr = "{d["abbr"]}"',
               f'Driver{i:02d}Number = {d["number"]}',f'Driver{i:02d}Team = {teams.index(d["team"])+1}','']
 (root/'release').mkdir(exist_ok=True)
-(root/'release/GP2LAP.CFG').write_text('\n'.join(lines)+'\n')
+(root/'release/GP2LAP.CFG').write_text(clean_cfg('\n'.join(lines)+'\n'))
 print('Generated release/GP2LAP.CFG')
